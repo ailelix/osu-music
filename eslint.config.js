@@ -42,6 +42,7 @@ export default defineConfigWithVueTs(
         'error',
         { prefer: 'type-imports' }
       ],
+      '@typescript-eslint/no-explicit-any': 'off', // 禁用 no-explicit-any 规则
     }
   },
   // https://github.com/vuejs/eslint-config-typescript
