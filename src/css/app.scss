@@ -8,8 +8,7 @@ body {
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden; /* 禁止 html 和 body 元素自身的滚动条 */
-  position: fixed; /* 另一种强制占满视口并禁止滚动的方法 */
+  /* 移除 overflow: hidden 和 position: fixed，允许页面滚动 */
 }
 
 .q-layout {
@@ -19,23 +18,25 @@ body {
 #q-app {
   height: 100%;
   width: 100%;
-  overflow: hidden; /* 也可以在这里禁止滚动，以防万一 */
+  /* 移除 overflow: hidden，允许内容滚动 */
   display: flex; /* 如果 #q-app 内部直接是 QLayout，flex 可能不是必需的 */
   flex-direction: column; /* 如果使用 flex */
 }
 // 定义一些可复用的辉光效果类
 .neon-glow-primary {
-  box-shadow: 0 0 5px $primary,
-              0 0 10px $primary,
-              0 0 15px color.adjust($primary, $lightness: 10%),
-              0 0 20px color.adjust($primary, $lightness: 20%);
+  box-shadow:
+    0 0 5px $primary,
+    0 0 10px $primary,
+    0 0 15px color.adjust($primary, $lightness: 10%),
+    0 0 20px color.adjust($primary, $lightness: 20%);
   // animation: glow-animation 1.5s infinite alternate; // 可选的动画
 }
 
 .neon-text-primary {
   color: $primary;
-  text-shadow: 0 0 3px color.adjust($primary, $lightness: 20%),
-               0 0 5px color.adjust($primary, $lightness: 30%);
+  text-shadow:
+    0 0 3px color.adjust($primary, $lightness: 20%),
+    0 0 5px color.adjust($primary, $lightness: 30%);
 }
 
 // 斜切角边框的 mixin (示例)
@@ -44,12 +45,16 @@ body {
   &:before {
     content: '';
     position: absolute;
-    top: 0; right: 0; bottom: 0; left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     z-index: -1; // Ensure pseudo-element is behind the content
     background: $border-color;
     transform: skewX($skew-angle);
   }
-  > * { // Content needs to be above the pseudo-element
+  > * {
+    // Content needs to be above the pseudo-element
     position: relative;
     z-index: 1;
     background: $dark-page; // Or your content background color
