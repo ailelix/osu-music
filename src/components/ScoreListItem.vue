@@ -161,6 +161,7 @@ const rankColor = (rank: string) => {
   return colors[rank.toUpperCase()] || 'grey-7';
 };
 
+
 const modColor = (mod: string) => {
   // 示例：可以为特定 mod 定义颜色
   const modColors: Record<string, string> = {
@@ -172,10 +173,11 @@ const modColor = (mod: string) => {
     EZ: 'green-7',
     NF: 'grey-8',
     HT: 'teal-7',
-    // ... 其他 mods
+    // ...
   };
   return modColors[mod.toUpperCase()] || 'blue-grey-8';
 };
+
 
 const formatPlayedAt = (dateTimeString: string) => {
   try {
@@ -221,7 +223,7 @@ const handleDownloadClick = () => {
     textColor: 'white',
     classes: 'glossy', // 示例：添加一点 Quasar 的样式
   });
-  // 未来在这里实现下载逻辑
+  // 未来在这里实现下载逻辑 TODO
   // e.g., window.electron.ipcRenderer.send('download-beatmapset', beatmapsetId);
 };
 

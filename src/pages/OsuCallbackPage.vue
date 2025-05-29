@@ -26,13 +26,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router'; // 新增 useRoute
+import { useRouter } from 'vue-router'; // 移除 useRoute
 import { handleOsuCallback as exchangeCodeForToken } from 'src/services/osuAuthService';
 import { useAuthStore } from 'src/services/auth';
 import { useQuasar } from 'quasar';
 
 const router = useRouter();
-const route = useRoute(); // 新增
 const authStore = useAuthStore();
 const $q = useQuasar();
 
@@ -135,38 +134,40 @@ function processAuthentication(authCode: string | undefined): Promise<void> {
     });
 }
 
-onMounted(() => {
+onMounted(async () => {
   console.log('[OsuCallbackPage] Component mounted successfully.');
-  const authCodeFromQuery = route.query.code as string | undefined;
-  console.log('[OsuCallbackPage] Attempting to get authCode from route query:', authCodeFromQuery);
-  if (
-    authCodeFromQuery &&
-    typeof authCodeFromQuery === 'string' &&
-    authCodeFromQuery.trim() !== ''
-  ) {
-    processAuthentication(authCodeFromQuery)
-      .then(() => {
-        console.log('Authentication process completed via route query code.');
-      })
-      .catch((err) => {
-        console.error('Error from processAuthentication promise chain (route query code):', err);
-        if (!errorMessage.value) {
-          errorMessage.value = '登录过程中发生意外错误。';
-          showRetryButton.value = true;
-        }
-      });
-  } else {
-    statusMessage.value = '未在回调中找到授权码。';
-    errorMessage.value = '无法获取授权码。请尝试重新登录。';
+  isLoading.value = true;
+  statusMessage.value = 'Fetching authorization code...';
+  try {
+    if (window.electron?.ipcRenderer) {
+      console.log('[OsuCallbackPage] Requesting pending auth code from main process...');
+      const result = await window.electron.ipcRenderer.invoke('get-pending-oauth-code');
+      // 类型断言
+      const r = result as { success?: boolean; code?: string; error?: string };
+      if (r && r.success && r.code && typeof r.code === 'string') {
+        await processAuthentication(r.code);
+      } else {
+        console.error(
+          '[OsuCallbackPage] Failed to get pending auth code or code is invalid:',
+          r?.error,
+        );
+        statusMessage.value = '无法获取授权信息。';
+        errorMessage.value = r?.error || '未能从主程序获取授权码。';
+        showRetryButton.value = true;
+        isLoading.value = false;
+      }
+    } else {
+      statusMessage.value = 'Electron IPC 不可用。';
+      errorMessage.value = '无法与主程序通信以获取授权码。';
+      showRetryButton.value = true;
+      isLoading.value = false;
+    }
+  } catch (ipcError) {
+    console.error('[OsuCallbackPage] Error invoking IPC for get-pending-oauth-code:', ipcError);
+    statusMessage.value = '与主程序通信失败。';
+    errorMessage.value = '获取授权码时发生错误。';
     showRetryButton.value = true;
     isLoading.value = false;
-    $q.notify({
-      type: 'negative',
-      message: errorMessage.value,
-      multiLine: true,
-      timeout: 7000,
-      icon: 'error',
-    });
   }
   // 超时逻辑
   const timeoutId = setTimeout(() => {
@@ -178,7 +179,6 @@ onMounted(() => {
       $q.notify({ type: 'warning', message: errorMessage.value, multiLine: true, timeout: 10000 });
     }
   }, 30000);
-
   onUnmounted(() => {
     clearTimeout(timeoutId);
   });

@@ -1,5 +1,4 @@
 // src/services/osuAuthService.ts
-import axios from 'axios'; // 使用全局 axios 实例或创建一个新的
 import { useAuthStore } from './auth'; // 稍后会创建这个 store
 import { useSettingsStore } from 'stores/settingsStore'; // <--- 导入 settings store
 
@@ -15,7 +14,6 @@ import { useSettingsStore } from 'stores/settingsStore'; // <--- 导入 settings
 const OSU_REDIRECT_URI: string = 'osu-music-fusion://oauth/callback'; // <--- 使用自定义协议
 
 const OSU_AUTHORIZE_URL = 'https://osu.ppy.sh/oauth/authorize';
-const OSU_TOKEN_URL = 'https://osu.ppy.sh/oauth/token';
 
 // 定义 Token 响应的接口
 interface OsuTokenResponse {
@@ -125,53 +123,46 @@ export async function handleOsuCallback(code: string): Promise<boolean> {
 export async function refreshToken(): Promise<boolean> {
   const settingsStore = useSettingsStore();
   const clientId = settingsStore.osuClientId;
-  const clientSecret = settingsStore.osuClientSecret; // <--- 获取 Client Secret
+  const clientSecret = settingsStore.osuClientSecret;
   const authStore = useAuthStore();
   if (!authStore.refreshToken) {
     console.warn('No Osu! refresh token available for refresh.');
     authStore.logout();
     return false;
   }
-
   if (!clientId || !clientSecret) {
-    // <--- 确保两者都存在 (从内存 settingsStore)
     console.error('Osu! API credentials not configured for token refresh.');
     authStore.logout();
     return false;
   }
-
-  try {
-    const payload = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret, // <--- 添加 client_secret
-      grant_type: 'refresh_token',
-      refresh_token: authStore.refreshToken,
-      scope: 'identify public friends.read chat.read', // <--- 确保与登录时请求的 scope 一致
-    });
-
-    const response = await axios.post<OsuTokenResponse>(OSU_TOKEN_URL, payload, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-    });
-
-    authStore.setTokens(
-      response.data.access_token,
-      response.data.refresh_token, // Osu! 可能会返回新的 refresh token
-      response.data.expires_in,
-    );
-    return true;
-  } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      console.error('Error refreshing Osu! token:', error.response?.data || error.message);
-      // 如果刷新失败 (例如 refresh token 也过期了)，则登出用户
-      if (error.response?.status === 400 || error.response?.status === 401) {
-        authStore.logout();
+  // --- 新实现：通过 Electron 主进程刷新 token ---
+  if (window.electron?.ipcRenderer) {
+    try {
+      const result = await window.electron.ipcRenderer.invoke('refresh-osu-token', {
+        refreshToken: authStore.refreshToken,
+        clientId,
+        clientSecret,
+        scope: 'identify public friends.read chat.read',
+      });
+      // 类型断言，确保 r.data 为 OsuTokenResponse 类型
+      const r = result as { success?: boolean; data?: unknown; error?: unknown; status?: number };
+      if (r && r.success && r.data && typeof r.data === 'object' && r.data !== null) {
+        const tokenData = r.data as OsuTokenResponse;
+        authStore.setTokens(tokenData.access_token, tokenData.refresh_token, tokenData.expires_in);
+        return true;
+      } else {
+        console.error('Error refreshing Osu! token (IPC):', r?.error || r);
+        if (r?.status === 400 || r?.status === 401) {
+          authStore.logout();
+        }
+        return false;
       }
-    } else {
-      console.error('Unknown error refreshing Osu! token:', error);
+    } catch (error) {
+      console.error('Unknown error refreshing Osu! token (IPC):', error);
+      return false;
     }
+  } else {
+    console.error('Electron IPC not available for token refresh.');
     return false;
   }
 }

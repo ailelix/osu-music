@@ -1,25 +1,37 @@
 <template>
   <q-layout view="lHh LpR fFf" class="main-layout" :class="{ 'platform-mac': isOnMac }">
     <!-- Header -->
-    <q-header class="main-header"> 
+    <q-header class="main-header">
       <q-toolbar class="header-toolbar-content" :style="toolbarStyle">
-        
         <!-- Logo作为抽屉切换按钮 -->
-        <div class="header-logo-wrapper q-ml-xs" role="button" aria-label="Toggle Menu"> 
+        <div class="header-logo-wrapper q-ml-xs" role="button" aria-label="Toggle Menu">
           <AppLogo :is-drawer-open="leftDrawerOpen" @toggle-drawer="toggleLeftDrawer" />
         </div>
 
-        <q-toolbar-title class="header-title draggable-area"> 
-          OSU! MUSIC
-        </q-toolbar-title>
+        <q-toolbar-title class="header-title draggable-area"> OSU! MUSIC </q-toolbar-title>
 
-        <q-btn dense flat round icon="search" aria-label="Search" @click="navigateToSearch" class="non-draggable-area" /> 
+        <q-btn
+          dense
+          flat
+          round
+          icon="search"
+          aria-label="Search"
+          @click="navigateToSearch"
+          class="non-draggable-area"
+        />
 
         <!-- Windows/Linux 窗口控件 (如果需要) -->
         <div v-if="!isOnMac && showWindowControls" class="window-controls non-draggable-area">
-          <q-btn dense flat round icon="remove" @click="minimizeWindow" size="sm"/>
-          <q-btn dense flat round :icon="isMaximized ? 'filter_none' : 'crop_square'" @click="toggleMaximizeWindow" size="sm"/>
-          <q-btn dense flat round icon="close" @click="closeWindow" size="sm" class="btn-close"/>
+          <q-btn dense flat round icon="remove" @click="minimizeWindow" size="sm" />
+          <q-btn
+            dense
+            flat
+            round
+            :icon="isMaximized ? 'filter_none' : 'crop_square'"
+            @click="toggleMaximizeWindow"
+            size="sm"
+          />
+          <q-btn dense flat round icon="close" @click="closeWindow" size="sm" class="btn-close" />
         </div>
       </q-toolbar>
     </q-header>
@@ -72,9 +84,11 @@ onMounted(async () => {
     showWindowControls.value = platform !== 'darwin';
     try {
       isFullScreen.value = await window.electron.windowControls.isFullScreen();
-      isMaximized.value = await window.electron.ipcRenderer.invoke<boolean>('get-initial-maximize-state');
+      isMaximized.value = await window.electron.ipcRenderer.invoke<boolean>(
+        'get-initial-maximize-state',
+      );
     } catch (e) {
-      console.error("Error getting initial window states:", e);
+      console.error('Error getting initial window states:', e);
     }
     unlistenEnterFullScreen = window.electron.windowControls.onEnterFullScreen(() => {
       isFullScreen.value = true;
@@ -82,8 +96,8 @@ onMounted(async () => {
     unlistenLeaveFullScreen = window.electron.windowControls.onLeaveFullScreen(() => {
       isFullScreen.value = false;
     });
-    window.electron.ipcRenderer.on('window-maximized', () => isMaximized.value = true);
-    window.electron.ipcRenderer.on('window-unmaximized', () => isMaximized.value = false);
+    window.electron.ipcRenderer.on('window-maximized', () => (isMaximized.value = true));
+    window.electron.ipcRenderer.on('window-unmaximized', () => (isMaximized.value = false));
   } else {
     showWindowControls.value = false;
     isOnMac.value = false;
@@ -110,8 +124,10 @@ async function navigateToSearch() {
       leftDrawerOpen.value = false;
     }
   } catch (error) {
-    if (!isNavigationFailure(error, NavigationFailureType.aborted) &&
-        !isNavigationFailure(error, NavigationFailureType.cancelled)) {
+    if (
+      !isNavigationFailure(error, NavigationFailureType.aborted) &&
+      !isNavigationFailure(error, NavigationFailureType.cancelled)
+    ) {
       console.error('Failed to navigate to search:', error);
     }
   }
@@ -139,14 +155,15 @@ $primary: #ff4081 !default; // 确保 $primary 已定义
 
 .main-layout {
   // &.platform-mac .main-header .header-toolbar-content {
-    // 对于macOS，如果红绿灯是标准高度，toolbar可能需要整体加高一点点
-    // 或者通过 spacer 的高度来调整内容区的起始位置
+  // 对于macOS，如果红绿灯是标准高度，toolbar可能需要整体加高一点点
+  // 或者通过 spacer 的高度来调整内容区的起始位置
   // }
 }
 
 .page-container-bg {
   background-color: $dark-page;
   color: $header-text; // 假设页面文本也是亮的
+  padding-bottom: env(safe-area-inset-bottom); // 适配 iOS 底部安全区
 }
 
 .main-header {
@@ -154,6 +171,7 @@ $primary: #ff4081 !default; // 确保 $primary 已定义
   box-shadow: none !important; // 移除 q-header 的默认阴影
   color: $header-text;
   -webkit-app-region: drag; // 默认整个 header 可拖动
+  padding-top: env(safe-area-inset-top); // 关键：顶部安全区适配
 
   .header-toolbar-content {
     background-color: $header-bg; // 毛玻璃效果的底色
@@ -168,7 +186,7 @@ $primary: #ff4081 !default; // 确保 $primary 已定义
 
   .macos-traffic-lights-spacer {
     min-width: 70px; // 根据实际红绿灯宽度调整，通常 70-80px
-    height: 30px;   // 根据红绿灯高度调整，或设为 toolbar 高度的一部分
+    height: 30px; // 根据红绿灯高度调整，或设为 toolbar 高度的一部分
     -webkit-app-region: no-drag; // 这个区域不可拖动
     // background-color: rgba(255,0,0,0.1); // 调试用：给占位符一个颜色看看范围
   }
@@ -197,7 +215,9 @@ $primary: #ff4081 !default; // 确保 $primary 已定义
   }
 
   // 所有可交互元素设为不可拖动
-  .q-btn, .q-toolbar__title:not(.draggable-area), .header-logo-wrapper {
+  .q-btn,
+  .q-toolbar__title:not(.draggable-area),
+  .header-logo-wrapper {
     -webkit-app-region: no-drag;
   }
 
@@ -211,7 +231,7 @@ $primary: #ff4081 !default; // 确保 $primary 已定义
       border-radius: 0;
       padding: 0 8px; // 调整按钮内边距
       &:hover {
-        background-color: rgba(255,255,255,0.15);
+        background-color: rgba(255, 255, 255, 0.15);
       }
       &.btn-close:hover {
         background-color: #e81123;

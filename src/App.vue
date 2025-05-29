@@ -7,6 +7,8 @@ import { onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSettingsStore } from 'src/stores/settingsStore';
 import { useAuthStore } from 'src/services/auth';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style as StatusBarStyle } from '@capacitor/status-bar';
 
 const settingsStore = useSettingsStore();
 const authStore = useAuthStore();
@@ -18,6 +20,17 @@ onMounted(() => {
   authStore.initAuth().catch((error) => {
     console.error('Failed to initialize authStore:', error);
   }); // 异步初始化 authStore
+
+  // --- 修正：iOS 状态栏安全区适配 ---
+  if (
+    typeof Capacitor.isNativePlatform === 'function' &&
+    typeof Capacitor.getPlatform === 'function' &&
+    Capacitor.isNativePlatform() &&
+    Capacitor.getPlatform() === 'ios'
+  ) {
+    StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+    StatusBar.setStyle({ style: StatusBarStyle.Dark }).catch(() => {}); // 你可以根据 header 颜色选择 Light/Dark
+  }
 
   if (window.electron?.ipcRenderer) {
     // 新的监听器
@@ -35,11 +48,19 @@ onMounted(() => {
       }
     };
     window.electron.ipcRenderer.on('navigate-to-oauth-callback-with-code', navigateWithCodeHandler);
+
+    // 新的监听器：收到主进程通知后跳转到 osuCallback 页面（不带 code）
+    const pendingCallbackHandler = () => {
+      console.log('[App.vue] Received "oauth-callback-pending". Navigating to osuCallback page.');
+      router.push({ name: 'osuCallback' }).catch((err) => {
+        console.error('[App.vue] Navigation to osuCallback page (pending) failed:', err);
+      });
+    };
+    window.electron.ipcRenderer.on('oauth-callback-pending', pendingCallbackHandler);
+
     unlistenNavigateCallback = () => {
-      window.electron?.ipcRenderer?.removeAllListeners(
-        'navigate-to-oauth-callback-with-code',
-      );
-      console.log('[App.vue] Removed "navigate-to-oauth-callback-with-code" IPC listener.');
+      window.electron?.ipcRenderer?.removeAllListeners('oauth-callback-pending');
+      console.log('[App.vue] Removed "oauth-callback-pending" IPC listener.');
     };
   } else {
     console.warn(

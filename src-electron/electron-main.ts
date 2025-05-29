@@ -59,6 +59,8 @@ if (!app.requestSingleInstanceLock()) {
 app.setAsDefaultProtocolClient(PROTOCOL_SCHEME);
 
 // 处理通过自定义协议打开应用的 URL
+let pendingAuthCode: string | null = null; // 用于暂存 code
+
 function handleProtocolUrl(url: string) {
   console.log('[Main Process] handleProtocolUrl called with URL:', url);
   try {
@@ -85,13 +87,13 @@ function handleProtocolUrl(url: string) {
       return; // 如果有错误，就不再尝试发送 code
     }
     if (authCode && mainWindow) {
-      // 只发送一个 IPC 消息，包含 code
-      mainWindow.webContents.send('navigate-to-oauth-callback-with-code', authCode);
-      console.log(
-        `[Main Process] Sent 'navigate-to-oauth-callback-with-code' with code: ${authCode}`,
-      );
+      pendingAuthCode = authCode; // 暂存 code
+      console.log('[Main Process] Auth code received and stashed:', pendingAuthCode);
       if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
       mainWindow.focus();
+      mainWindow.webContents.send('oauth-callback-pending'); // 只通知，不带 code
+      console.log("[Main Process] Sent 'oauth-callback-pending' to renderer.");
     } else {
       console.error(
         '[Main Process] Could not extract code from protocol URL or mainWindow not available.',
@@ -101,6 +103,19 @@ function handleProtocolUrl(url: string) {
     console.error('[Main Process] Error parsing protocol URL or sending IPC:', e);
   }
 }
+
+// 新增: 渲染进程主动拉取 code
+ipcMain.handle('get-pending-oauth-code', () => {
+  if (pendingAuthCode) {
+    const codeToReturn = pendingAuthCode;
+    pendingAuthCode = null; // 获取后清除
+    console.log('[Main Process] Renderer requested pending auth code, returning:', codeToReturn);
+    return { success: true, code: codeToReturn };
+  } else {
+    console.warn('[Main Process] Renderer requested pending auth code, but none was found.');
+    return { success: false, error: 'No pending auth code' };
+  }
+});
 
 async function createWindow() {
   /**
@@ -287,7 +302,10 @@ void app.whenReady().then(() => {
       let errorData: unknown = undefined;
 
       if (typeof error === 'object' && error !== null) {
-        const err = error as { response?: { data?: { message?: string }, status?: number }, message?: string };
+        const err = error as {
+          response?: { data?: { message?: string }; status?: number };
+          message?: string;
+        };
         errorData = err.response?.data;
         errorMessage = err.response?.data?.message || err.message || errorMessage;
         errorStatus = err.response?.status;

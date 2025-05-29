@@ -103,6 +103,7 @@ interface PlayHistoryState {
 }
 
 const DEFAULT_LIMIT = 20;
+const ALL_MODES = ['osu', 'taiko', 'fruits', 'mania'];
 
 export const usePlayHistoryStore = defineStore('playHistory', {
   state: (): PlayHistoryState => ({
@@ -151,77 +152,108 @@ export const usePlayHistoryStore = defineStore('playHistory', {
         return;
       }
       try {
-        const params: Record<string, unknown> = {
-          mode: mode,
-          limit: limit,
-          include_fails: includeFails ? 1 : 0,
-          ...cursorParams,
-        };
-        const response = await osuApi.get<Score[]>(`/users/${targetUserId}/scores/recent`, {
-          params,
-          headers: { Authorization: `Bearer ${authStore.accessToken}` },
-        });
-        const newScores = response.data;
-        if (isLoadingMoreRequest) {
-          if (newScores.length > 0 && this.scores.length > 0) {
-            const lastExisting = this.scores[this.scores.length - 1];
-            const firstNew = newScores[0];
-            // 检查时间逆序
-            if (
-              firstNew &&
-              lastExisting &&
-              new Date(firstNew.created_at) >= new Date(lastExisting.created_at)
-            ) {
-              this.error =
-                '检测到API分页异常：新页数据时间未递减，可能已达到osu! API限制，无法继续加载更多。';
-              this.hasMore = false;
-              this.nextCursorParams = null;
-              return;
-            }
-            let firstNewScoreId: number | undefined = undefined;
-            if (firstNew) {
-              firstNewScoreId = firstNew.id;
-            }
-            if (
-              firstNewScoreId !== undefined &&
-              this.scores.some((s) => s.id === firstNewScoreId)
-            ) {
-              console.warn(
-                '[PlayHistoryStore] Load more returned duplicate data. Assuming no more new scores.',
-              );
-              this.hasMore = false;
-              this.nextCursorParams = null;
-              // 不追加重复数据
-            } else {
-              this.scores.push(...newScores);
-            }
-          } else if (newScores.length > 0) {
-            this.scores.push(...newScores);
-          }
-        } else {
-          this.scores = newScores;
-        }
-        // --- 判断是否还有更多数据 ---
-        if (newScores.length === 0 || newScores.length < limit) {
+        let allScores: Score[] = [];
+        if (mode === 'all') {
+          // 并发请求所有模式
+          const requests = ALL_MODES.map((m) => {
+            const params: Record<string, unknown> = {
+              mode: m,
+              limit: limit,
+              include_fails: includeFails ? 1 : 0,
+              ...cursorParams,
+            };
+            return osuApi
+              .get<Score[]>(`/users/${targetUserId}/scores/recent`, {
+                params,
+                headers: { Authorization: `Bearer ${authStore.accessToken}` },
+              })
+              .then((res) => res.data)
+              .catch(() => []);
+          });
+          const results = await Promise.all(requests);
+          allScores = results.flat();
+          // 按时间降序排序
+          allScores.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          );
+          this.scores = allScores;
+          // 多模式下分页暂不支持
           this.hasMore = false;
           this.nextCursorParams = null;
-        } else if (this.hasMore && newScores.length > 0) {
-          const lastScore = newScores[newScores.length - 1];
-          if (lastScore && lastScore.created_at && lastScore.id !== undefined) {
-            this.nextCursorParams = {
-              'cursor[created_at]': lastScore.created_at,
-              'cursor[id]': lastScore.id.toString(),
-            };
-            this.hasMore = true;
+          console.log(`[PlayHistoryStore] Fetched (all modes) ${allScores.length} scores.`);
+        } else {
+          const params: Record<string, unknown> = {
+            mode: mode,
+            limit: limit,
+            include_fails: includeFails ? 1 : 0,
+            ...cursorParams,
+          };
+          const response = await osuApi.get<Score[]>(`/users/${targetUserId}/scores/recent`, {
+            params,
+            headers: { Authorization: `Bearer ${authStore.accessToken}` },
+          });
+          const newScores = response.data;
+          if (isLoadingMoreRequest) {
+            if (newScores.length > 0 && this.scores.length > 0) {
+              const lastExisting = this.scores[this.scores.length - 1];
+              const firstNew = newScores[0];
+              // 检查时间逆序
+              if (
+                firstNew &&
+                lastExisting &&
+                new Date(firstNew.created_at) >= new Date(lastExisting.created_at)
+              ) {
+                this.error =
+                  '检测到API分页异常：新页数据时间未递减，可能已达到osu! API限制，无法继续加载更多。';
+                this.hasMore = false;
+                this.nextCursorParams = null;
+                return;
+              }
+              let firstNewScoreId: number | undefined = undefined;
+              if (firstNew) {
+                firstNewScoreId = firstNew.id;
+              }
+              if (
+                firstNewScoreId !== undefined &&
+                this.scores.some((s) => s.id === firstNewScoreId)
+              ) {
+                console.warn(
+                  '[PlayHistoryStore] Load more returned duplicate data. Assuming no more new scores.',
+                );
+                this.hasMore = false;
+                this.nextCursorParams = null;
+                // 不追加重复数据
+              } else {
+                this.scores.push(...newScores);
+              }
+            } else if (newScores.length > 0) {
+              this.scores.push(...newScores);
+            }
           } else {
+            this.scores = newScores;
+          }
+          // --- 判断是否还有更多数据 ---
+          if (newScores.length === 0 || newScores.length < limit) {
             this.hasMore = false;
             this.nextCursorParams = null;
+          } else if (this.hasMore && newScores.length > 0) {
+            const lastScore = newScores[newScores.length - 1];
+            if (lastScore && lastScore.created_at && lastScore.id !== undefined) {
+              this.nextCursorParams = {
+                'cursor[created_at]': lastScore.created_at,
+                'cursor[id]': lastScore.id.toString(),
+              };
+              this.hasMore = true;
+            } else {
+              this.hasMore = false;
+              this.nextCursorParams = null;
+            }
           }
+          console.log(
+            `[PlayHistoryStore] Fetched ${newScores.length} scores. HasMore: ${this.hasMore}, NextCursor:`,
+            this.nextCursorParams,
+          );
         }
-        console.log(
-          `[PlayHistoryStore] Fetched ${newScores.length} scores. HasMore: ${this.hasMore}, NextCursor:`,
-          this.nextCursorParams,
-        );
       } catch (error) {
         const axiosError = error as AxiosError<{ message?: string; error?: string }>;
         this.error =
