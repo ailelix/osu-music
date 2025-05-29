@@ -59,8 +59,6 @@ Osu！Music 处于几乎新建阶段，而且开发者比较懒 ;P
 *   **UI 库**: [Quasar Framework (v2)](https://quasar.dev/)
 *   **状态管理**: [Pinia](https://pinia.vuejs.org/)
 *   **HTTP 客户端**: [Axios](https://axios-http.com/)
-*   **编程语言**: [TypeScript](https://www.typescriptlang.org/)
-*   **包管理器**: [Yarn](https://yarnpkg.com/)
 *   **API 交互**: [Osu! API v2](https://osu.ppy.sh/docs/index.html) (OAuth 2.0 Client Secret Flow)
 
 ## 参与贡献 ❤️
