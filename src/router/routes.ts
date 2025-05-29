@@ -36,6 +36,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/LibraryPage.vue'), // 你需要创建这个页面
         meta: { title: 'Library', icon: 'library_music' },
       },
+      // Recent Played 页
+      {
+        path: 'recent-played', // 访问 '/recent-played'
+        name: 'recentPlayed',
+        component: () => import('pages/RecentPlayed.vue'),
+        meta: { title: 'Recent Played', icon: 'history' },
+      },
       // 搜索页
       {
         path: 'search', // 访问 '/search'

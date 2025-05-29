@@ -36,9 +36,7 @@
           </q-item>
           <q-separator spaced class="bg-grey-8 q-my-md" />
           <!-- 曲库和播放列表区 -->
-          <q-item-label header class="drawer-header-label text-grey-6">
-            Your Music
-          </q-item-label>
+          <q-item-label header class="drawer-header-label text-grey-6"> Your Music </q-item-label>
           <q-item
             v-for="link in secondaryNavLinks"
             :key="link.name"
@@ -81,9 +79,7 @@
       </q-scroll-area>
       <div class="q-pa-sm absolute-bottom text-center drawer-footer-info">
         <q-separator dark spaced class="footer-separator" />
-        <div class="text-caption text-grey-7 q-mt-sm">
-          App Version 0.1.0
-        </div>
+        <div class="text-caption text-grey-7 q-mt-sm">App Version 0.1.0</div>
       </div>
     </div>
   </q-drawer>
@@ -121,6 +117,7 @@ const primaryNavLinks: NavLink[] = [
 const secondaryNavLinks: NavLink[] = [
   { title: 'Library', icon: 'library_music', to: '/library', name: 'library' },
   { title: 'Now Playing', icon: 'play_circle_outline', to: '/player', name: 'player' },
+  { title: 'Recent Played', icon: 'history', to: '/recent-played', name: 'recentPlayed' }, // 新增
 ];
 
 const utilityLinks: NavLink[] = [
@@ -162,7 +159,9 @@ const utilityLinks: NavLink[] = [
   margin: 2px 10px;
   padding: 10px 16px;
   color: $drawer-text;
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    color 0.2s ease-in-out;
 
   .q-item__section--avatar {
     min-width: 40px;
