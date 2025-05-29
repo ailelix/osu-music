@@ -31,6 +31,11 @@ Osu！Music 处于几乎新建阶段，而且开发者比较懒 ;P
     *   无边框窗口、自定义协议注册与处理、基本的窗口控制 IPC。
     *   通过 `contextBridge` 安全暴露必要的 Electron API 给渲染进程。
 
+**已完成的功能截图**
+![1748514573875.png(via stardots.io)](https://i.stardots.io/chris/1748514573875.png "1748514573875.png(via stardots.io)")
+![1748514523662.png(via stardots.io)](https://i.stardots.io/chris/1748514523662.png "1748514523662.png(via stardots.io)")
+![1748514502656.png(via stardots.io)](https://i.stardots.io/chris/1748514502656.png "1748514502656.png(via stardots.io)")
+
 ### 未完成/进行中 🚧
 
 *   **凭证持久化**:
