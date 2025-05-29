@@ -1,6 +1,5 @@
 // src/stores/auth.ts
 import { defineStore } from 'pinia';
-import { api as osuApi } from 'boot/axios'; // 你的 Axios 实例 (用于调用 Osu! API)
 import { refreshToken as refreshOsuTokenService } from 'src/services/osuAuthService'; // 导入刷新服务
 
 // 定义用户信息的接口
@@ -19,6 +18,14 @@ interface AuthState {
   expiresAt: number | null; // Token 过期的时间戳 (毫秒)
   user: OsuUserProfile | null;
   isLoading: boolean; // 用于跟踪认证或用户信息获取过程
+}
+
+// 定义 IPC 返回结果类型
+interface IPCUserProfileResult {
+  success: boolean;
+  data?: OsuUserProfile;
+  error?: string;
+  status?: number;
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -42,7 +49,8 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = accessToken;
       this.expiresAt = Date.now() + (expiresIn - 300) * 1000; // 提前 5 分钟视为过期，以便刷新
 
-      if (refreshToken) { // Osu! 可能在每次刷新时不一定返回新的 refresh token
+      if (refreshToken) {
+        // Osu! 可能在每次刷新时不一定返回新的 refresh token
         this.refreshToken = refreshToken;
         localStorage.setItem('osu_refresh_token', refreshToken);
       }
@@ -56,31 +64,59 @@ export const useAuthStore = defineStore('auth', {
 
     async fetchUserProfile() {
       if (!this.accessToken) {
-        console.warn('Cannot fetch user profile without an access token.');
-        return;
+        console.warn('[AuthStore] Cannot fetch user profile without an access token.');
+        throw new Error('No access token available for fetching user profile.');
       }
+      console.log(
+        '[AuthStore] Requesting user profile from main process with token:',
+        this.accessToken ? 'Token Present' : 'Token Missing',
+      );
       this.isLoading = true;
       try {
-        // 使用配置好的 axios 实例 (osuApi) 来调用 Osu! API
-        const response = await osuApi.get<OsuUserProfile>('/me');
-        this.user = response.data;
-        localStorage.setItem('osu_user_profile', JSON.stringify(this.user));
-      } catch (error: unknown) {
-        if (error instanceof Error && 'response' in error) {
-          const axiosError = error as { response?: { status?: number; data?: unknown } };
-          console.error('Failed to fetch Osu! user profile:', axiosError.response?.data || error.message);
-          // 如果获取用户信息时 token 失效 (例如401)，尝试刷新
-          if (axiosError.response?.status === 401) {
+        const result = (await window.electron?.ipcRenderer?.invoke(
+          'fetch-osu-user-profile',
+          this.accessToken,
+        )) as IPCUserProfileResult;
+        if (result && result.success && result.data) {
+          console.log(
+            '[AuthStore] User profile fetched successfully via main process:',
+            result.data,
+          );
+          this.user = result.data;
+          localStorage.setItem('osu_user_profile', JSON.stringify(this.user));
+        } else {
+          console.error(
+            '[AuthStore] Failed to fetch user profile via main process:',
+            result?.error || 'Unknown error',
+          );
+          if (result?.status === 401) {
             const refreshed = await this.tryRefreshToken();
             if (refreshed) {
-              await this.fetchUserProfile(); // 刷新成功后重试
+              const newResult = (await window.electron?.ipcRenderer?.invoke(
+                'fetch-osu-user-profile',
+                this.accessToken,
+              )) as IPCUserProfileResult;
+              if (newResult && newResult.success && newResult.data) {
+                this.user = newResult.data;
+                localStorage.setItem('osu_user_profile', JSON.stringify(this.user));
+              } else {
+                throw new Error(newResult?.error || 'Failed to fetch profile after refresh');
+              }
             } else {
-              this.logout(); // 刷新失败则登出
+              this.logout();
+              throw new Error('Token refresh failed.');
             }
+          } else {
+            throw new Error(result?.error || 'Failed to fetch user profile.');
           }
-        } else {
-          console.error('An unknown error occurred:', error);
         }
+      } catch (error) {
+        console.error(
+          '[AuthStore] Error invoking IPC for fetchUserProfile or during processing:',
+          error,
+        );
+        this.isLoading = false;
+        throw error;
       } finally {
         this.isLoading = false;
       }
@@ -126,6 +162,6 @@ export const useAuthStore = defineStore('auth', {
       if (this.isAuthenticated && !this.user) {
         await this.fetchUserProfile();
       }
-    }
+    },
   },
 });

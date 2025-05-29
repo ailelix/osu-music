@@ -145,7 +145,7 @@ const form = ref({
 // 这个值应该与 osuAuthService.ts 中的 OSU_REDIRECT_URI 和 Electron 主进程配置一致
 const osuCallbackUriToDisplay = ref<string>('osu-music-fusion://oauth/callback');
 
-// بما أننا لا نستخدم PKCE، فإن Client Secret مطلوب دائمًا
+// PKCE
 const canLogin = computed(() => !!settingsStore.osuClientId && !!settingsStore.osuClientSecret);
 
 onMounted(() => {

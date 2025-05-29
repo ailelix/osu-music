@@ -20,18 +20,26 @@ onMounted(() => {
   }); // 异步初始化 authStore
 
   if (window.electron?.ipcRenderer) {
-    const navigateHandler = () => {
+    // 新的监听器
+    const navigateWithCodeHandler = (_event: unknown, ...args: unknown[]) => {
+      const code = args[0];
       console.log(
-        '[App.vue] Received "navigate-to-oauth-callback" from main. Navigating to OsuCallbackPage...',
+        `[App.vue] Received "navigate-to-oauth-callback-with-code" from main with code. Navigating...`,
       );
-      router.push({ name: 'osuCallback' }).catch((err) => {
-        console.error('[App.vue] Navigation to osuCallback page failed:', err);
-      });
+      if (typeof code === 'string' && code.trim() !== '') {
+        router.push({ name: 'osuCallback', query: { code: code } }).catch((err) => {
+          console.error('[App.vue] Navigation to osuCallback page with code failed:', err);
+        });
+      } else {
+        console.error('[App.vue] Received navigation command but no valid code was provided.');
+      }
     };
-    window.electron.ipcRenderer.on('navigate-to-oauth-callback', navigateHandler);
+    window.electron.ipcRenderer.on('navigate-to-oauth-callback-with-code', navigateWithCodeHandler);
     unlistenNavigateCallback = () => {
-      window.electron?.ipcRenderer?.removeAllListeners('navigate-to-oauth-callback');
-      console.log('[App.vue] Removed "navigate-to-oauth-callback" IPC listener.');
+      window.electron?.ipcRenderer?.removeAllListeners(
+        'navigate-to-oauth-callback-with-code',
+      );
+      console.log('[App.vue] Removed "navigate-to-oauth-callback-with-code" IPC listener.');
     };
   } else {
     console.warn(

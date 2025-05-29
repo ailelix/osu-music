@@ -69,9 +69,8 @@ export function redirectToOsuLogin(): Promise<void> {
 export async function handleOsuCallback(code: string): Promise<boolean> {
   const settingsStore = useSettingsStore();
   const clientId = settingsStore.osuClientId;
-  const clientSecret = settingsStore.osuClientSecret; // <--- 获取 Client Secret
+  const clientSecret = settingsStore.osuClientSecret;
   if (!clientId || !clientSecret) {
-    // <--- 确保两者都存在
     console.error(
       'Osu! Client ID or Client Secret not configured (in memory settings) for token exchange.',
     );
@@ -80,39 +79,41 @@ export async function handleOsuCallback(code: string): Promise<boolean> {
   }
 
   try {
-    const payload = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret, // <--- 添加 client_secret
-      code: code,
-      grant_type: 'authorization_code',
-      redirect_uri: OSU_REDIRECT_URI,
-    });
-
-    const response = await axios.post<OsuTokenResponse>(OSU_TOKEN_URL, payload, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-    });
-
-    const authStore = useAuthStore();
-    authStore.setTokens(
-      response.data.access_token,
-      response.data.refresh_token,
-      response.data.expires_in,
-    );
-    return true;
-  } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      console.error(
-        'Error exchanging Osu! authorization code for token:',
-        error.response?.data || error.message,
-      );
+    // --- 通过 IPC 调用主进程进行 token 交换 ---
+    if (window.electron?.ipcRenderer) {
+      const tokenResponse = await window.electron.ipcRenderer.invoke('exchange-osu-token', {
+        code,
+        clientId,
+        clientSecret,
+      });
+      // 类型保护，确保 tokenResponse 结构正确
+      if (
+        tokenResponse &&
+        typeof tokenResponse === 'object' &&
+        'access_token' in tokenResponse &&
+        'refresh_token' in tokenResponse &&
+        'expires_in' in tokenResponse
+      ) {
+        const authStore = useAuthStore();
+        authStore.setTokens(
+          (tokenResponse as OsuTokenResponse).access_token,
+          (tokenResponse as OsuTokenResponse).refresh_token,
+          (tokenResponse as OsuTokenResponse).expires_in,
+        );
+        return true;
+      } else {
+        // 主进程返回了错误
+        const authStore = useAuthStore();
+        authStore.logout();
+        return false;
+      }
     } else {
-      console.error('Unknown error exchanging Osu! authorization code for token:', error);
+      alert('Electron IPC is not available. Cannot exchange Osu! token.');
+      return false;
     }
+  } catch {
     const authStore = useAuthStore();
-    authStore.logout(); // 发生错误时登出
+    authStore.logout();
     return false;
   }
 }

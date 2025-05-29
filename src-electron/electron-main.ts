@@ -4,6 +4,7 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import type { Schema } from 'electron-store';
 import Store from 'electron-store'; // 导入 electron-store 和 Schema
+import axios from 'axios'; // 新增: 用于主进程 token 交换
 
 // 定义设置项的结构 (与渲染进程的 AppSettings 一致)
 interface AppSettings {
@@ -84,12 +85,11 @@ function handleProtocolUrl(url: string) {
       return; // 如果有错误，就不再尝试发送 code
     }
     if (authCode && mainWindow) {
+      // 只发送一个 IPC 消息，包含 code
+      mainWindow.webContents.send('navigate-to-oauth-callback-with-code', authCode);
       console.log(
-        `[Main Process] Sending event 'oauth-code-received-protocol' with data: ${authCode}`,
+        `[Main Process] Sent 'navigate-to-oauth-callback-with-code' with code: ${authCode}`,
       );
-      mainWindow.webContents.send('oauth-code-received-protocol', authCode);
-      console.log('[Main Process] Sending "navigate-to-oauth-callback" event to renderer.');
-      mainWindow.webContents.send('navigate-to-oauth-callback');
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
     } else {
@@ -236,6 +236,75 @@ void app.whenReady().then(() => {
   });
   ipcMain.on('close-window', () => {
     mainWindow?.close();
+  });
+
+  // --- 新增: 处理 Osu! token 交换 ---
+  ipcMain.handle('exchange-osu-token', async (event, { code, clientId, clientSecret }) => {
+    try {
+      const payload = new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: 'osu-music-fusion://oauth/callback',
+      });
+      const response = await axios.post('https://osu.ppy.sh/oauth/token', payload, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError?.(error)) {
+        return { error: true, message: error.response?.data || error.message };
+      }
+      return { error: true, message: String(error) };
+    }
+  });
+
+  // --- 新增: 代理获取 Osu! 用户信息 ---
+  ipcMain.handle('fetch-osu-user-profile', async (event, accessToken: string | null) => {
+    console.log('[Main Process] Received fetch-osu-user-profile request.');
+    if (!accessToken) {
+      console.error('[Main Process] No access token provided for fetching user profile.');
+      return { success: false, error: 'Access token is missing', status: 401 };
+    }
+    const OSU_API_ME_URL = 'https://osu.ppy.sh/api/v2/me';
+    try {
+      const response = await axios.get(OSU_API_ME_URL, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('[Main Process] User profile fetched successfully:', response.data);
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      let errorMessage = 'Unknown error fetching profile';
+      let errorStatus: number | undefined = undefined;
+      let errorData: unknown = undefined;
+
+      if (typeof error === 'object' && error !== null) {
+        const err = error as { response?: { data?: { message?: string }, status?: number }, message?: string };
+        errorData = err.response?.data;
+        errorMessage = err.response?.data?.message || err.message || errorMessage;
+        errorStatus = err.response?.status;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+
+      console.error(
+        '[Main Process] Error fetching Osu! user profile in main process:',
+        errorData || errorMessage,
+      );
+      return {
+        success: false,
+        error: errorMessage,
+        status: errorStatus,
+      };
+    }
   });
 });
 
