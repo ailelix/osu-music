@@ -12,9 +12,13 @@
             <div class="text-h6">Osu! Authentication Configuration</div>
             <div class="text-caption text-grey-6 q-mt-xs">
               You need to create your own Osu! OAuth application.
-              <a href="https://osu.ppy.sh/home/account/edit#oauth" target="_blank" class="text-primary">
-                Create one on the Osu! website <q-icon name="open_in_new" size="xs" />
-              </a>.
+              <a
+                href="https://osu.ppy.sh/home/account/edit#oauth"
+                target="_blank"
+                class="text-primary"
+              >
+                Create one on the Osu! website <q-icon name="open_in_new" size="xs" /> </a
+              >.
             </div>
           </q-card-section>
           <q-separator dark />
@@ -30,14 +34,22 @@
               class="q-mb-md callback-uri-input"
             >
               <template v-slot:append>
-                <q-btn flat dense round icon="content_copy" @click="copyCallbackUri" aria-label="Copy Callback URI">
+                <q-btn
+                  flat
+                  dense
+                  round
+                  icon="content_copy"
+                  @click="copyCallbackUri"
+                  aria-label="Copy Callback URI"
+                >
                   <q-tooltip>Copy to clipboard</q-tooltip>
                 </q-btn>
               </template>
             </q-input>
             <div class="text-caption text-warning">
               <q-icon name="warning" class="q-mr-xs" />
-              Ensure this exact URI is set as a "Redirect URI" in your Osu! OAuth application settings.
+              Ensure this exact URI is set as a "Redirect URI" in your Osu! OAuth application
+              settings.
             </div>
           </q-card-section>
           <q-separator dark spaced />
@@ -50,7 +62,7 @@
                 dark
                 dense
                 lazy-rules
-                :rules="[val => !!val || 'Client ID is required']"
+                :rules="[(val) => !!val || 'Client ID is required']"
                 placeholder="Enter your Osu! Client ID"
                 clearable
               />
@@ -62,7 +74,7 @@
                 dark
                 dense
                 lazy-rules
-                :rules="[val => !!val || 'Client Secret is required']"
+                :rules="[(val) => !!val || 'Client Secret is required']"
                 placeholder="Enter your Osu! Client Secret"
                 clearable
               />
@@ -127,9 +139,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useQuasar, copyToClipboard } from 'quasar';
-import { useAuthStore } from 'src/services/auth';         // <--- 确认路径
-import { useSettingsStore } from 'src/stores/settingsStore'; // <--- 确认路径 (通常是 'stores/settings')
-import { redirectToOsuLogin } from 'src/services/osuAuthService';
+import { useAuthStore } from 'src/services/auth'; // <--- 确认路径
+import { useSettingsStore } from 'src/stores/settingsStore';
 import { useRouter } from 'vue-router';
 
 const $q = useQuasar();
@@ -190,18 +201,20 @@ async function handleOsuLogin() {
   if (!canLogin.value) {
     $q.notify({
       type: 'warning',
-      message: 'Please configure your Osu! API Client ID and Client Secret in the settings above before logging in.',
-      multiLine: true
+      message:
+        'Please configure your Osu! API Client ID and Client Secret in the settings above before logging in.',
+      multiLine: true,
     });
     return;
   }
   try {
-    await redirectToOsuLogin();
+    // 只跳转到 callback 页面，由 callback 页面负责发起 OAuth 跳转
+    await router.push({ name: 'osuCallback' });
   } catch (error) {
-    console.error("Failed to initiate Osu! login:", error);
+    console.error('Failed to navigate to Osu! callback page:', error);
     $q.notify({
       type: 'negative',
-      message: 'Could not start Osu! login process. Check console for errors.'
+      message: 'Could not navigate to Osu! login page. Check console for errors.',
     });
   }
 }
@@ -209,7 +222,7 @@ async function handleOsuLogin() {
 function handleLogout() {
   authStore.logout();
   $q.notify({ type: 'info', message: 'Successfully logged out from Osu!' });
-  router.push('/').catch(err => console.error("Logout navigation error:", err));
+  router.push('/').catch((err) => console.error('Logout navigation error:', err));
 }
 </script>
 

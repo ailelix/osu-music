@@ -27,7 +27,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router'; // 移除 useRoute
-import { handleOsuCallback as exchangeCodeForToken } from 'src/services/osuAuthService';
+import {
+  handleOsuCallback as exchangeCodeForToken,
+  redirectToOsuLogin,
+} from 'src/services/osuAuthService';
 import { useAuthStore } from 'src/services/auth';
 import { useQuasar } from 'quasar';
 
@@ -138,34 +141,29 @@ onMounted(async () => {
   console.log('[OsuCallbackPage] Component mounted successfully.');
   isLoading.value = true;
   statusMessage.value = 'Fetching authorization code...';
+  // 优先尝试从主进程拉取 code
+  let codeFetched = false;
   try {
     if (window.electron?.ipcRenderer) {
       console.log('[OsuCallbackPage] Requesting pending auth code from main process...');
       const result = await window.electron.ipcRenderer.invoke('get-pending-oauth-code');
-      // 类型断言
       const r = result as { success?: boolean; code?: string; error?: string };
       if (r && r.success && r.code && typeof r.code === 'string') {
+        codeFetched = true;
         await processAuthentication(r.code);
-      } else {
-        console.error(
-          '[OsuCallbackPage] Failed to get pending auth code or code is invalid:',
-          r?.error,
-        );
-        statusMessage.value = '无法获取授权信息。';
-        errorMessage.value = r?.error || '未能从主程序获取授权码。';
-        showRetryButton.value = true;
-        isLoading.value = false;
       }
-    } else {
-      statusMessage.value = 'Electron IPC 不可用。';
-      errorMessage.value = '无法与主程序通信以获取授权码。';
-      showRetryButton.value = true;
-      isLoading.value = false;
     }
   } catch (ipcError) {
     console.error('[OsuCallbackPage] Error invoking IPC for get-pending-oauth-code:', ipcError);
-    statusMessage.value = '与主程序通信失败。';
-    errorMessage.value = '获取授权码时发生错误。';
+  }
+  // 如果没有 code 且未认证，才发起 OAuth 跳转
+  if (!authStore.isAuthenticated && !codeFetched) {
+    await redirectToOsuLogin();
+    return;
+  }
+  if (!codeFetched && !authStore.isAuthenticated) {
+    statusMessage.value = '无法获取授权信息。';
+    errorMessage.value = '未能从主程序获取授权码。';
     showRetryButton.value = true;
     isLoading.value = false;
   }
