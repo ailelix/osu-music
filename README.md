@@ -126,8 +126,10 @@ Osu! Music 是一个的开源项目，我们非常欢迎对本项目感兴趣的
     ```bash
     q build -m electron
     ```
-    默认情况下，它可能会为你当前的操作系统构建。你可以添加 `--target` (或 `-T`) 和 `--arch` (或 `-A`) 参数来指定目标平台和架构，例如：
+    默认情况下，它可能会为你当前的操作系统构建。你可以添加 `--target` (或 `-T`) 和 `--arch` (或 `-A`) 参数来指定目标平台和架构.
+    
     **我们始终有iOS构建和Android构建的企划，并且尽量做到一次开发多端部署，框架构建调试阶段暂不考虑移动端**
+    
     更多构建选项请参考 [Quasar Electron 构建命令文档](https://quasar.dev/quasar-cli-vite/developing-electron-apps/build-commands)。
 
 
