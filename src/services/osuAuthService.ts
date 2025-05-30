@@ -1,6 +1,9 @@
 // src/services/osuAuthService.ts
 import { useAuthStore } from './auth'; // 稍后会创建这个 store
 import { useSettingsStore } from 'stores/settingsStore'; // <--- 导入 settings store
+import { Capacitor } from '@capacitor/core';
+import type { HttpResponse } from '@capacitor/http';
+import { Http } from '@capacitor/http';
 
 // --- 配置常量 ---
 // !!! 警告: 在开源项目中，将 CLIENT_ID 直接硬编码在前端是不安全的最佳实践 !!!
@@ -14,6 +17,7 @@ import { useSettingsStore } from 'stores/settingsStore'; // <--- 导入 settings
 const OSU_REDIRECT_URI: string = 'osu-music-fusion://oauth/callback'; // <--- 使用自定义协议
 
 const OSU_AUTHORIZE_URL = 'https://osu.ppy.sh/oauth/authorize';
+const OSU_TOKEN_URL = 'https://osu.ppy.sh/oauth/token';
 
 // 定义 Token 响应的接口
 interface OsuTokenResponse {
@@ -75,44 +79,115 @@ export async function handleOsuCallback(code: string): Promise<boolean> {
     alert('Please configure your Osu! Client ID and Client Secret in the Settings page.');
     return false;
   }
-
-  try {
-    // --- 通过 IPC 调用主进程进行 token 交换 ---
-    if (window.electron?.ipcRenderer) {
-      const tokenResponse = await window.electron.ipcRenderer.invoke('exchange-osu-token', {
-        code,
-        clientId,
-        clientSecret,
-      });
-      // 类型保护，确保 tokenResponse 结构正确
-      if (
-        tokenResponse &&
-        typeof tokenResponse === 'object' &&
-        'access_token' in tokenResponse &&
-        'refresh_token' in tokenResponse &&
-        'expires_in' in tokenResponse
-      ) {
-        const authStore = useAuthStore();
-        authStore.setTokens(
-          (tokenResponse as OsuTokenResponse).access_token,
-          (tokenResponse as OsuTokenResponse).refresh_token,
-          (tokenResponse as OsuTokenResponse).expires_in,
-        );
-        return true;
-      } else {
-        // 主进程返回了错误
-        const authStore = useAuthStore();
-        authStore.logout();
-        return false;
+  const payload = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    code: code,
+    grant_type: 'authorization_code',
+    redirect_uri: OSU_REDIRECT_URI,
+  });
+  // --- Capacitor 原生环境 ---
+  if (Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
+    try {
+      const options = {
+        url: OSU_TOKEN_URL,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        data: payload.toString(),
+      };
+      console.log(
+        '[osuAuthService Capacitor] Attempting token exchange via @capacitor/http...',
+        options,
+      );
+      const response: HttpResponse = await Http.request(options);
+      console.log('[osuAuthService Capacitor] Token exchange response:', response);
+      if (response.status >= 200 && response.status < 300 && response.data) {
+        const tokenResponse = response.data as OsuTokenResponse;
+        if (tokenResponse && tokenResponse.access_token) {
+          const authStore = useAuthStore();
+          authStore.setTokens(
+            tokenResponse.access_token,
+            tokenResponse.refresh_token,
+            tokenResponse.expires_in,
+          );
+          return true;
+        }
       }
-    } else {
-      alert('Electron IPC is not available. Cannot exchange Osu! token.');
+      const authStore = useAuthStore();
+      authStore.logout();
+      return false;
+    } catch (error) {
+      console.error(
+        '[osuAuthService Capacitor] Error during @capacitor/http token exchange:',
+        error,
+      );
+      const authStore = useAuthStore();
+      authStore.logout();
       return false;
     }
-  } catch {
-    const authStore = useAuthStore();
-    authStore.logout();
-    return false;
+  }
+  // --- Electron 环境 ---
+  if (window.electron?.ipcRenderer) {
+    const tokenResponse = await window.electron.ipcRenderer.invoke('exchange-osu-token', {
+      code,
+      clientId,
+      clientSecret,
+    });
+    // 类型保护，确保 tokenResponse 结构正确
+    if (
+      tokenResponse &&
+      typeof tokenResponse === 'object' &&
+      'access_token' in tokenResponse &&
+      'refresh_token' in tokenResponse &&
+      'expires_in' in tokenResponse
+    ) {
+      const authStore = useAuthStore();
+      authStore.setTokens(
+        (tokenResponse as OsuTokenResponse).access_token,
+        (tokenResponse as OsuTokenResponse).refresh_token,
+        (tokenResponse as OsuTokenResponse).expires_in,
+      );
+      return true;
+    } else {
+      // 主进程返回了错误
+      const authStore = useAuthStore();
+      authStore.logout();
+      return false;
+    }
+  } else {
+    // --- Web 环境降级 ---
+    try {
+      const response = await fetch(OSU_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: payload.toString(),
+      });
+      if (response.ok) {
+        const tokenResponse = (await response.json()) as OsuTokenResponse;
+        if (tokenResponse && tokenResponse.access_token) {
+          const authStore = useAuthStore();
+          authStore.setTokens(
+            tokenResponse.access_token,
+            tokenResponse.refresh_token,
+            tokenResponse.expires_in,
+          );
+          return true;
+        }
+      }
+      const authStore = useAuthStore();
+      authStore.logout();
+      return false;
+    } catch {
+      const authStore = useAuthStore();
+      authStore.logout();
+      return false;
+    }
   }
 }
 
@@ -135,7 +210,47 @@ export async function refreshToken(): Promise<boolean> {
     authStore.logout();
     return false;
   }
-  // --- 新实现：通过 Electron 主进程刷新 token ---
+  const payload = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: 'refresh_token',
+    refresh_token: authStore.refreshToken,
+    scope: 'identify public friends.read chat.read',
+  });
+  // --- Capacitor 原生环境 ---
+  if (Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
+    try {
+      const options = {
+        url: OSU_TOKEN_URL,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        data: payload.toString(),
+      };
+      const response: HttpResponse = await Http.request(options);
+      if (response.status >= 200 && response.status < 300 && response.data) {
+        const tokenData = response.data as OsuTokenResponse;
+        if (tokenData && tokenData.access_token) {
+          authStore.setTokens(
+            tokenData.access_token,
+            tokenData.refresh_token,
+            tokenData.expires_in,
+          );
+          return true;
+        }
+      }
+      if (response.status === 400 || response.status === 401) {
+        authStore.logout();
+      }
+      return false;
+    } catch {
+      authStore.logout();
+      return false;
+    }
+  }
+  // --- Electron 环境 ---
   if (window.electron?.ipcRenderer) {
     try {
       const result = await window.electron.ipcRenderer.invoke('refresh-osu-token', {
@@ -162,7 +277,34 @@ export async function refreshToken(): Promise<boolean> {
       return false;
     }
   } else {
-    console.error('Electron IPC not available for token refresh.');
-    return false;
+    // --- Web 环境降级 ---
+    try {
+      const response = await fetch(OSU_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: payload.toString(),
+      });
+      if (response.ok) {
+        const tokenData = (await response.json()) as OsuTokenResponse;
+        if (tokenData && tokenData.access_token) {
+          authStore.setTokens(
+            tokenData.access_token,
+            tokenData.refresh_token,
+            tokenData.expires_in,
+          );
+          return true;
+        }
+      }
+      if (response.status === 400 || response.status === 401) {
+        authStore.logout();
+      }
+      return false;
+    } catch {
+      authStore.logout();
+      return false;
+    }
   }
 }

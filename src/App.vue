@@ -9,6 +9,7 @@ import { useSettingsStore } from 'src/stores/settingsStore';
 import { useAuthStore } from 'src/services/auth';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style as StatusBarStyle } from '@capacitor/status-bar';
+import { App as CapacitorApp } from '@capacitor/app';
 
 const settingsStore = useSettingsStore();
 const authStore = useAuthStore();
@@ -32,32 +33,16 @@ onMounted(() => {
     StatusBar.setStyle({ style: StatusBarStyle.Dark }).catch(() => {}); // 你可以根据 header 颜色选择 Light/Dark
   }
 
+  // --- 只监听 oauth-callback-pending，移除 navigate-to-oauth-callback-with-code ---
   if (window.electron?.ipcRenderer) {
-    // 新的监听器
-    const navigateWithCodeHandler = (_event: unknown, ...args: unknown[]) => {
-      const code = args[0];
-      console.log(
-        `[App.vue] Received "navigate-to-oauth-callback-with-code" from main with code. Navigating...`,
-      );
-      if (typeof code === 'string' && code.trim() !== '') {
-        router.push({ name: 'osuCallback', query: { code: code } }).catch((err) => {
-          console.error('[App.vue] Navigation to osuCallback page with code failed:', err);
-        });
-      } else {
-        console.error('[App.vue] Received navigation command but no valid code was provided.');
-      }
-    };
-    window.electron.ipcRenderer.on('navigate-to-oauth-callback-with-code', navigateWithCodeHandler);
-
-    // 新的监听器：收到主进程通知后跳转到 osuCallback 页面（不带 code）
     const pendingCallbackHandler = () => {
       console.log('[App.vue] Received "oauth-callback-pending". Navigating to osuCallback page.');
-      router.push({ name: 'osuCallback' }).catch((err) => {
+      // 强制刷新 osuCallback 页面，带上唯一参数，确保组件重新 mount
+      router.push({ name: 'osuCallback', query: { t: Date.now() } }).catch((err) => {
         console.error('[App.vue] Navigation to osuCallback page (pending) failed:', err);
       });
     };
     window.electron.ipcRenderer.on('oauth-callback-pending', pendingCallbackHandler);
-
     unlistenNavigateCallback = () => {
       window.electron?.ipcRenderer?.removeAllListeners('oauth-callback-pending');
       console.log('[App.vue] Removed "oauth-callback-pending" IPC listener.');
@@ -66,6 +51,41 @@ onMounted(() => {
     console.warn(
       '[App.vue] Electron IPC not available, cannot listen for OAuth navigation commands.',
     );
+  }
+
+  if (Capacitor.isNativePlatform()) {
+    console.log('[App.vue setup] Registering Capacitor appUrlOpen listener.');
+    void CapacitorApp.addListener('appUrlOpen', (event) => {
+      console.log('[App.vue Capacitor] App URL opened:', event.url);
+      try {
+        const url = new URL(event.url);
+        if (
+          url.protocol === 'osu-music-fusion:' &&
+          url.hostname === 'oauth' &&
+          url.pathname === '/callback'
+        ) {
+          const code = url.searchParams.get('code');
+          const error = url.searchParams.get('error');
+          if (error) {
+            console.error(
+              '[App.vue Capacitor] OAuth Error from URL:',
+              error,
+              url.searchParams.get('error_description'),
+            );
+            router.push({ name: 'settings', query: { oauth_error: error } }).catch(() => {});
+            return;
+          }
+          if (code) {
+            console.log('[App.vue Capacitor] Extracted OAuth code:', code);
+            const authStore = useAuthStore();
+            authStore.setPendingOAuthCode(code);
+            router.push({ name: 'osuCallback', query: { trigger: Date.now() } }).catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.error('[App.vue Capacitor] Error parsing appUrlOpen event:', e);
+      }
+    });
   }
 });
 

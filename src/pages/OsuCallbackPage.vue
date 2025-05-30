@@ -25,8 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useRouter } from 'vue-router'; // 移除 useRoute
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router'; // 移除 useRoute
 import {
   handleOsuCallback as exchangeCodeForToken,
   redirectToOsuLogin,
@@ -37,6 +37,7 @@ import { useQuasar } from 'quasar';
 const router = useRouter();
 const authStore = useAuthStore();
 const $q = useQuasar();
+const route = useRoute();
 
 const statusMessage = ref<string>('Connecting to Osu!...');
 const errorMessage = ref<string | null>(null);
@@ -137,50 +138,92 @@ function processAuthentication(authCode: string | undefined): Promise<void> {
     });
 }
 
-onMounted(async () => {
-  console.log('[OsuCallbackPage] Component mounted successfully.');
+async function handleAuthenticationFlow() {
+  console.log('[OsuCallbackPage] handleAuthenticationFlow started.');
   isLoading.value = true;
-  statusMessage.value = 'Fetching authorization code...';
-  // 优先尝试从主进程拉取 code
-  let codeFetched = false;
-  try {
-    if (window.electron?.ipcRenderer) {
-      console.log('[OsuCallbackPage] Requesting pending auth code from main process...');
-      const result = await window.electron.ipcRenderer.invoke('get-pending-oauth-code');
-      const r = result as { success?: boolean; code?: string; error?: string };
-      if (r && r.success && r.code && typeof r.code === 'string') {
-        codeFetched = true;
-        await processAuthentication(r.code);
-      }
+  statusMessage.value = 'Initializing authentication...';
+  errorMessage.value = null;
+  showRetryButton.value = false;
+  const authStore = useAuthStore();
+  let codeToProcess = authStore.consumePendingOAuthCode();
+  console.log('[OsuCallbackPage] Code from authStore.consumePendingOAuthCode() IS:', codeToProcess);
+  console.log('[OsuCallbackPage] Type of codeToProcess:', typeof codeToProcess);
+  if (!codeToProcess) {
+    const codeFromQuery = route.query.code as string | undefined;
+    console.log(
+      '[OsuCallbackPage] Store code is null/undefined. Trying route.query.code:',
+      codeFromQuery,
+    );
+    if (codeFromQuery && typeof codeFromQuery === 'string' && codeFromQuery.trim() !== '') {
+      codeToProcess = codeFromQuery;
+      console.log('[OsuCallbackPage] Using code from route query as fallback:', codeToProcess);
     }
-  } catch (ipcError) {
-    console.error('[OsuCallbackPage] Error invoking IPC for get-pending-oauth-code:', ipcError);
   }
-  // 如果没有 code 且未认证，才发起 OAuth 跳转
-  if (!authStore.isAuthenticated && !codeFetched) {
-    await redirectToOsuLogin();
+  if (codeToProcess && typeof codeToProcess === 'string' && codeToProcess.trim() !== '') {
+    console.log(
+      '[OsuCallbackPage] VALID code found. Calling processAuthentication with:',
+      codeToProcess,
+    );
+    await processAuthentication(codeToProcess);
     return;
   }
-  if (!codeFetched && !authStore.isAuthenticated) {
-    statusMessage.value = '无法获取授权信息。';
-    errorMessage.value = '未能从主程序获取授权码。';
-    showRetryButton.value = true;
-    isLoading.value = false;
-  }
-  // 超时逻辑
-  const timeoutId = setTimeout(() => {
-    if (isLoading.value && !authStore.isAuthenticated && !errorMessage.value) {
-      statusMessage.value = '认证过程似乎太长了。';
-      errorMessage.value = 'Osu! 或应用无响应。请检查您的网络连接或稍后再试。';
+  if (!authStore.isAuthenticated) {
+    console.log(
+      '[OsuCallbackPage] NO VALID CODE obtained and not authenticated. Initiating Osu! login.',
+    );
+    statusMessage.value = 'Redirecting to Osu! for login...';
+    try {
+      await redirectToOsuLogin();
+    } catch (e) {
+      console.error('[OsuCallbackPage] Error calling redirectToOsuLogin:', e);
+      errorMessage.value =
+        (e instanceof Error ? e.message : String(e)) || 'Failed to initiate Osu! login.';
+      statusMessage.value = 'Error';
       showRetryButton.value = true;
       isLoading.value = false;
-      $q.notify({ type: 'warning', message: errorMessage.value, multiLine: true, timeout: 10000 });
+    }
+  } else {
+    console.warn('[OsuCallbackPage] Authenticated but no code processed. Redirecting to settings.');
+    statusMessage.value = 'Already authenticated or invalid state.';
+    isLoading.value = false;
+    void router.replace({ name: 'settings' });
+  }
+}
+
+onMounted(async () => {
+  console.log(
+    '[OsuCallbackPage] Component mounted. Current route query:',
+    JSON.stringify(route.query),
+  );
+  await handleAuthenticationFlow();
+  const timeoutId = setTimeout(() => {
+    if (isLoading.value && !authStore.isAuthenticated && !errorMessage.value) {
+      // 可选：超时处理逻辑
+      console.warn('[OsuCallbackPage] Authentication flow timeout.');
+      statusMessage.value = 'Authentication timeout.';
+      errorMessage.value = '登录流程超时，请重试。';
+      showRetryButton.value = true;
+      isLoading.value = false;
     }
   }, 30000);
   onUnmounted(() => {
     clearTimeout(timeoutId);
   });
 });
+
+let isProcessingTChange = false;
+watch(
+  () => route.query.t,
+  async (newT, oldT) => {
+    if (newT && newT !== oldT && !isProcessingTChange) {
+      isProcessingTChange = true;
+      console.log('[OsuCallbackPage] Route param t changed, re-initiating authentication flow.');
+      await handleAuthenticationFlow();
+      isProcessingTChange = false;
+    }
+  },
+  { immediate: true },
+);
 
 onUnmounted(() => {
   // 移除旧的 unlistenOauthCode 调用

@@ -1,6 +1,9 @@
 // src/stores/auth.ts
 import { defineStore } from 'pinia';
 import { refreshToken as refreshOsuTokenService } from 'src/services/osuAuthService'; // 导入刷新服务
+import { Capacitor } from '@capacitor/core';
+import type { HttpResponse } from '@capacitor/http';
+import { Http } from '@capacitor/http';
 
 // 定义用户信息的接口
 export interface OsuUserProfile {
@@ -15,18 +18,13 @@ export interface OsuUserProfile {
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
-  expiresAt: number | null; // Token 过期的时间戳 (毫秒)
+  expiresAt: number | null;
   user: OsuUserProfile | null;
-  isLoading: boolean; // 用于跟踪认证或用户信息获取过程
+  isLoading: boolean;
+  pendingOAuthCode: string | null; // 新增临时存储 code
 }
 
 // 定义 IPC 返回结果类型
-interface IPCUserProfileResult {
-  success: boolean;
-  data?: OsuUserProfile;
-  error?: string;
-  status?: number;
-}
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
@@ -35,6 +33,7 @@ export const useAuthStore = defineStore('auth', {
     expiresAt: parseInt(localStorage.getItem('osu_expires_at') || '0', 10) || null,
     user: JSON.parse(localStorage.getItem('osu_user_profile') || 'null'),
     isLoading: false,
+    pendingOAuthCode: null, // 新增
   }),
 
   getters: {
@@ -61,60 +60,120 @@ export const useAuthStore = defineStore('auth', {
       // 在设置 token 后立即获取用户信息
       void this.fetchUserProfile();
     },
+    setPendingOAuthCode(code: string | null) {
+      this.pendingOAuthCode = code;
+      if (code) {
+        console.log('[AuthStore] Pending OAuth Code SET:', code);
+      } else {
+        console.log('[AuthStore] Pending OAuth Code CLEARED.');
+      }
+    },
+    consumePendingOAuthCode(): string | null {
+      const code = this.pendingOAuthCode;
+      this.pendingOAuthCode = null;
+      if (code) {
+        console.log('[AuthStore] Pending OAuth Code CONSUMED:', code);
+      }
+      return code;
+    },
 
     async fetchUserProfile() {
       if (!this.accessToken) {
         console.warn('[AuthStore] Cannot fetch user profile without an access token.');
         throw new Error('No access token available for fetching user profile.');
       }
-      console.log(
-        '[AuthStore] Requesting user profile from main process with token:',
-        this.accessToken ? 'Token Present' : 'Token Missing',
-      );
+      const OSU_API_ME_URL = 'https://osu.ppy.sh/api/v2/me';
       this.isLoading = true;
       try {
-        const result = (await window.electron?.ipcRenderer?.invoke(
-          'fetch-osu-user-profile',
-          this.accessToken,
-        )) as IPCUserProfileResult;
-        if (result && result.success && result.data) {
+        if (Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
+          // === CAPACITOR iOS/Android using @capacitor/http ===
           console.log(
-            '[AuthStore] User profile fetched successfully via main process:',
-            result.data,
+            '[AuthStore Capacitor] Attempting to fetch user profile via @capacitor/http with token:',
+            this.accessToken,
           );
-          this.user = result.data;
-          localStorage.setItem('osu_user_profile', JSON.stringify(this.user));
-        } else {
-          console.error(
-            '[AuthStore] Failed to fetch user profile via main process:',
-            result?.error || 'Unknown error',
-          );
-          if (result?.status === 401) {
-            const refreshed = await this.tryRefreshToken();
-            if (refreshed) {
-              const newResult = (await window.electron?.ipcRenderer?.invoke(
-                'fetch-osu-user-profile',
-                this.accessToken,
-              )) as IPCUserProfileResult;
-              if (newResult && newResult.success && newResult.data) {
-                this.user = newResult.data;
-                localStorage.setItem('osu_user_profile', JSON.stringify(this.user));
+          const options = {
+            url: OSU_API_ME_URL,
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${this.accessToken}`,
+              Accept: 'application/json',
+            },
+          };
+          const response: HttpResponse = await Http.request(options);
+          console.log('[AuthStore Capacitor] User profile response status:', response.status);
+          console.log('[AuthStore Capacitor] User profile response data:', response.data);
+          if (response.status >= 200 && response.status < 300 && response.data) {
+            this.user = response.data as OsuUserProfile;
+            localStorage.setItem('osu_user_profile', JSON.stringify(this.user));
+          } else {
+            console.error(
+              '[AuthStore Capacitor] Failed to fetch user profile. Status:',
+              response.status,
+            );
+            if (response.status === 401) {
+              const refreshed = await this.tryRefreshToken();
+              if (refreshed) {
+                await this.fetchUserProfile();
+                if (!this.user)
+                  throw new Error('Failed to fetch profile after refresh (Capacitor)');
               } else {
-                throw new Error(newResult?.error || 'Failed to fetch profile after refresh');
+                this.logout();
+                throw new Error('Token refresh failed (Capacitor).');
               }
             } else {
-              this.logout();
-              throw new Error('Token refresh failed.');
+              throw new Error(
+                response.data?.message || `Failed to fetch profile. Status: ${response.status}`,
+              );
             }
-          } else {
-            throw new Error(result?.error || 'Failed to fetch user profile.');
           }
+        } else if (window.electron?.ipcRenderer) {
+          // === ELECTRON ===
+          const result = await window.electron.ipcRenderer.invoke(
+            'fetch-osu-user-profile',
+            this.accessToken,
+          );
+          const r = result as {
+            success?: boolean;
+            data?: OsuUserProfile;
+            status?: number;
+            error?: string;
+          };
+          if (r && r.success && r.data) {
+            this.user = r.data;
+            localStorage.setItem('osu_user_profile', JSON.stringify(this.user));
+          } else {
+            if (r && r.status === 401) {
+              const refreshed = await this.tryRefreshToken();
+              if (refreshed) {
+                const newResult = await window.electron?.ipcRenderer?.invoke(
+                  'fetch-osu-user-profile',
+                  this.accessToken,
+                );
+                const nr = newResult as {
+                  success?: boolean;
+                  data?: OsuUserProfile;
+                  status?: number;
+                  error?: string;
+                };
+                if (nr && nr.success && nr.data) {
+                  this.user = nr.data;
+                  localStorage.setItem('osu_user_profile', JSON.stringify(this.user));
+                } else {
+                  throw new Error(nr?.error || 'Failed to fetch profile after refresh');
+                }
+              } else {
+                this.logout();
+                throw new Error('Token refresh failed.');
+              }
+            } else {
+              throw new Error(r?.error || 'Failed to fetch user profile.');
+            }
+          }
+        } else {
+          throw new Error('Platform not supported for fetching user profile.');
         }
       } catch (error) {
-        console.error(
-          '[AuthStore] Error invoking IPC for fetchUserProfile or during processing:',
-          error,
-        );
+        console.error('[AuthStore] Error fetching user profile:', error);
         this.isLoading = false;
         throw error;
       } finally {
