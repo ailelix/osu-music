@@ -4,7 +4,8 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import type { Schema } from 'electron-store';
 import Store from 'electron-store'; // 导入 electron-store 和 Schema
-import axios from 'axios'; // 新增: 用于主进程 token 交换
+import axios from 'axios';
+import type { AxiosError } from 'axios'; // 新增: 用于主进程 token 交换
 
 // 定义设置项的结构 (与渲染进程的 AppSettings 一致)
 interface AppSettings {
@@ -322,6 +323,39 @@ void app.whenReady().then(() => {
         error: errorMessage,
         status: errorStatus,
       };
+    }
+  });
+
+  // 新增 IPC 处理器，用于从外部 URL 获取音频数据并返回 Data URL
+  ipcMain.handle('fetch-audio-data', async (event, url) => {
+    // 确保 URL 包含协议
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `http://${url}`;
+    }
+
+    console.log(`[Main Process] Attempting to fetch audio from: ${url}`);
+    try {
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer',
+        timeout: 15000, // 设置超时为15秒
+      });
+      console.log(`[Main Process] Axios GET request to ${url} status: ${response.status}`);
+      const base64Audio = Buffer.from(response.data).toString('base64');
+      return `data:audio/mpeg;base64,${base64Audio}`;
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      console.error(`[Main Process] AXIOS ERROR fetching audio from ${url}:`);
+      if (axiosError.response) {
+        console.error('[Main Process] Error Response Data:', axiosError.response.data);
+        console.error('[Main Process] Error Response Status:', axiosError.response.status);
+        console.error('[Main Process] Error Response Headers:', axiosError.response.headers);
+      } else if (axiosError.request) {
+        console.error('[Main Process] Error Request Data:', axiosError.request);
+      } else {
+        console.error('[Main Process] Error Message:', axiosError.message);
+      }
+      console.error('[Main Process] Error Config:', axiosError.config);
+      throw new Error(`Failed to fetch audio data from main: ${axiosError.message}`);
     }
   });
 });

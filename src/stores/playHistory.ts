@@ -4,9 +4,6 @@ import { api as osuApi } from 'boot/axios'; // 假设你的 axios 实例已导�
 import type { AxiosError } from 'axios';
 import { useAuthStore } from 'src/services/auth'; // 用于获取当前用户ID和token
 
-// --- 接口定义 ---
-// 你需要根据 Osu! API 的实际响应来精确定义这些接口
-// 例如，Beatmapset 可能有 `covers` 对象包含不同尺寸的封面图
 export interface CoverImages {
   cover: string;
   'cover@2x': string;
@@ -102,7 +99,6 @@ interface PlayHistoryState {
   hasMore: boolean;
 }
 
-const DEFAULT_LIMIT = 20;
 const ALL_MODES = ['osu', 'taiko', 'fruits', 'mania'];
 
 export const usePlayHistoryStore = defineStore('playHistory', {
@@ -122,19 +118,13 @@ export const usePlayHistoryStore = defineStore('playHistory', {
     async fetchScores(
       userId?: number,
       mode: string = 'osu',
-      limit: number = DEFAULT_LIMIT,
+      _limit?: number, // 不再使用
       includeFails: boolean = true,
-      cursorParams?: Record<string, unknown>,
     ) {
-      const isLoadingMoreRequest = !!cursorParams;
-      if (isLoadingMoreRequest) {
-        this.isLoadingMore = true;
-      } else {
-        this.isLoadingInitial = true;
-        this.scores = [];
-        this.nextCursorParams = null;
-        this.hasMore = true;
-      }
+      this.isLoadingInitial = true;
+      this.scores = [];
+      this.nextCursorParams = null;
+      this.hasMore = false;
       this.error = null;
       const authStore = useAuthStore();
       let targetUserId = userId;
@@ -142,13 +132,13 @@ export const usePlayHistoryStore = defineStore('playHistory', {
         if (authStore.isAuthenticated && authStore.user) targetUserId = authStore.user.id;
         else {
           this.error = 'User not authenticated.';
-          this.isLoadingInitial = this.isLoadingMore = false;
+          this.isLoadingInitial = false;
           return;
         }
       }
       if (!authStore.accessToken) {
         this.error = 'Access token missing.';
-        this.isLoadingInitial = this.isLoadingMore = false;
+        this.isLoadingInitial = false;
         return;
       }
       try {
@@ -158,9 +148,8 @@ export const usePlayHistoryStore = defineStore('playHistory', {
           const requests = ALL_MODES.map((m) => {
             const params: Record<string, unknown> = {
               mode: m,
-              limit: limit,
+              limit: 1000,
               include_fails: includeFails ? 1 : 0,
-              ...cursorParams,
             };
             return osuApi
               .get<Score[]>(`/users/${targetUserId}/scores/recent`, {
@@ -177,82 +166,38 @@ export const usePlayHistoryStore = defineStore('playHistory', {
             (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
           );
           this.scores = allScores;
-          // 多模式下分页暂不支持
           this.hasMore = false;
           this.nextCursorParams = null;
           console.log(`[PlayHistoryStore] Fetched (all modes) ${allScores.length} scores.`);
         } else {
-          const params: Record<string, unknown> = {
-            mode: mode,
-            limit: limit,
-            include_fails: includeFails ? 1 : 0,
-            ...cursorParams,
-          };
-          const response = await osuApi.get<Score[]>(`/users/${targetUserId}/scores/recent`, {
-            params,
-            headers: { Authorization: `Bearer ${authStore.accessToken}` },
-          });
-          const newScores = response.data;
-          if (isLoadingMoreRequest) {
-            if (newScores.length > 0 && this.scores.length > 0) {
-              const lastExisting = this.scores[this.scores.length - 1];
-              const firstNew = newScores[0];
-              // 检查时间逆序
-              if (
-                firstNew &&
-                lastExisting &&
-                new Date(firstNew.created_at) >= new Date(lastExisting.created_at)
-              ) {
-                this.error =
-                  '检测到API分页异常：新页数据时间未递减，可能已达到osu! API限制，无法继续加载更多。';
-                this.hasMore = false;
-                this.nextCursorParams = null;
-                return;
-              }
-              let firstNewScoreId: number | undefined = undefined;
-              if (firstNew) {
-                firstNewScoreId = firstNew.id;
-              }
-              if (
-                firstNewScoreId !== undefined &&
-                this.scores.some((s) => s.id === firstNewScoreId)
-              ) {
-                console.warn(
-                  '[PlayHistoryStore] Load more returned duplicate data. Assuming no more new scores.',
-                );
-                this.hasMore = false;
-                this.nextCursorParams = null;
-                // 不追加重复数据
-              } else {
-                this.scores.push(...newScores);
-              }
-            } else if (newScores.length > 0) {
-              this.scores.push(...newScores);
-            }
-          } else {
-            this.scores = newScores;
-          }
-          // --- 判断是否还有更多数据 ---
-          if (newScores.length === 0 || newScores.length < limit) {
-            this.hasMore = false;
-            this.nextCursorParams = null;
-          } else if (this.hasMore && newScores.length > 0) {
-            const lastScore = newScores[newScores.length - 1];
-            if (lastScore && lastScore.created_at && lastScore.id !== undefined) {
-              this.nextCursorParams = {
-                'cursor[created_at]': lastScore.created_at,
-                'cursor[id]': lastScore.id.toString(),
-              };
-              this.hasMore = true;
+          // 递归拉取所有recent成绩，直到API返回空
+          let offset = 0;
+          let keepFetching = true;
+          const all: Score[] = [];
+          while (keepFetching) {
+            const params: Record<string, unknown> = {
+              mode: mode,
+              limit: 100,
+              include_fails: includeFails ? 1 : 0,
+              offset,
+            };
+            const response = await osuApi.get<Score[]>(`/users/${targetUserId}/scores/recent`, {
+              params,
+              headers: { Authorization: `Bearer ${authStore.accessToken}` },
+            });
+            const newScores = response.data;
+            if (newScores.length === 0) {
+              keepFetching = false;
             } else {
-              this.hasMore = false;
-              this.nextCursorParams = null;
+              all.push(...newScores);
+              offset += newScores.length;
+              if (newScores.length < 100) keepFetching = false;
             }
           }
-          console.log(
-            `[PlayHistoryStore] Fetched ${newScores.length} scores. HasMore: ${this.hasMore}, NextCursor:`,
-            this.nextCursorParams,
-          );
+          this.scores = all;
+          this.hasMore = false;
+          this.nextCursorParams = null;
+          console.log(`[PlayHistoryStore] Fetched ${all.length} scores (no pagination).`);
         }
       } catch (error) {
         const axiosError = error as AxiosError<{ message?: string; error?: string }>;
@@ -261,30 +206,16 @@ export const usePlayHistoryStore = defineStore('playHistory', {
           axiosError.response?.data?.error ||
           axiosError.message ||
           'Failed to fetch scores.';
-        if (!isLoadingMoreRequest) this.scores = [];
+        this.scores = [];
       } finally {
-        if (isLoadingMoreRequest) {
-          this.isLoadingMore = false;
-        } else {
-          this.isLoadingInitial = false;
-        }
+        this.isLoadingInitial = false;
       }
     },
 
-    // 如果你需要实现“加载更多”功能
-    async loadMoreRecentScores(
-      userId?: number,
-      mode: string = 'osu',
-      includeFails: boolean = true,
-    ) {
-      if (!this.hasMore || this.isLoadingInitial || this.isLoadingMore) {
-        return;
-      }
-      if (!this.nextCursorParams) {
-        this.hasMore = false;
-        return;
-      }
-      await this.fetchScores(userId, mode, DEFAULT_LIMIT, includeFails, this.nextCursorParams);
+    // 加载更多功能无效化
+    loadMoreRecentScores() {
+      // no-op
+      return;
     },
 
     /**

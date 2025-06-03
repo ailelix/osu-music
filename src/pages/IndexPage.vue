@@ -7,9 +7,8 @@
         <div class="user-avatar-container">
           <q-avatar size="120px" class="user-avatar">
             <img :src="authStore.user.avatar_url" :alt="authStore.user.username" />
-            <div class="avatar-ring"></div>
           </q-avatar>
-          <div class="online-indicator"></div>
+          <div class="avatar-ring"></div>
         </div>
         <div class="user-info q-mt-md">
           <h2 class="text-h4 text-weight-bold q-mb-xs user-name">
@@ -25,20 +24,6 @@
               class="supporter-badge"
             >
               Supporter
-            </q-chip>
-            <q-chip
-              :label="authStore.user.country_code"
-              color="primary"
-              text-color="white"
-              size="sm"
-              class="country-badge"
-            >
-              <q-avatar size="18px" class="q-mr-xs">
-                <img
-                  :src="`https://osu.ppy.sh/images/flags/${authStore.user.country_code.toLowerCase()}.png`"
-                  :alt="authStore.user.country_code"
-                />
-              </q-avatar>
             </q-chip>
           </div>
           <div class="text-overline text-primary">Welcome Back!</div>
@@ -60,18 +45,6 @@
       >
         Your Osu! music hub. Discover, listen, and enjoy.
       </p>
-      <div class="text-center">
-        <q-btn
-          to="/browse"
-          label="Explore Music Library"
-          color="primary"
-          size="lg"
-          unelevated
-          rounded
-          icon-right="eva-arrow-ios-forward-outline"
-          class="q-px-xl q-py-sm explore-btn"
-        ></q-btn>
-      </div>
     </section>
 
     <q-separator spaced="xl" inset />
@@ -131,25 +104,48 @@
     </section>
 
     <!-- Call to Action -->
-    <section class="q-py-xl text-center">
-      <q-btn
-        to="/auth-settings"
-        label="Setup Osu! Authentication"
-        color="secondary"
-        outline
-        rounded
-        icon="account_circle"
-        class="q-px-lg q-mr-md"
-      />
-      <q-btn
-        to="/settings"
-        label="General Settings"
-        color="grey-7"
-        outline
-        rounded
-        icon="settings"
-        class="q-px-lg"
-      />
+    <section class="q-py-xl text-center cta-buttons">
+      <template v-if="authStore.isAuthenticated && authStore.user">
+        <q-btn
+          :to="{ name: 'settings' }"
+          label="Account & Settings"
+          color="primary"
+          rounded
+          icon="manage_accounts"
+          class="q-px-lg q-mr-md"
+          unelevated
+        />
+        <q-btn
+          label="Logout"
+          color="negative"
+          outline
+          rounded
+          icon="logout"
+          @click="handleLogout"
+          class="q-px-lg"
+        />
+      </template>
+      <template v-else>
+        <q-btn
+          :to="{ name: 'authSettings' }"
+          label="Setup Osu! Authentication"
+          color="secondary"
+          size="lg"
+          unelevated
+          rounded
+          icon="account_circle"
+          class="q-px-xl q-py-sm q-mr-md main-cta"
+        />
+        <q-btn
+          :to="{ name: 'settings' }"
+          label="General Settings"
+          color="grey-7"
+          outline
+          rounded
+          icon="settings"
+          class="q-px-lg"
+        />
+      </template>
     </section>
   </q-page>
 </template>
@@ -157,8 +153,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useAuthStore } from 'src/services/auth';
+import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
 
 const authStore = useAuthStore();
+const router = useRouter();
+const $q = useQuasar();
 
 const greeting = computed(() => {
   const hour = new Date().getHours();
@@ -167,6 +167,16 @@ const greeting = computed(() => {
   if (hour < 18) return 'Good Afternoon';
   return 'Good Evening';
 });
+
+function handleLogout() {
+  authStore.logout();
+  $q.notify({
+    type: 'info',
+    message: 'You have been logged out.',
+    icon: 'info',
+  });
+  router.push({ name: 'home' }).catch(() => {});
+}
 </script>
 
 <style lang="scss" scoped>
@@ -177,44 +187,30 @@ const greeting = computed(() => {
       display: inline-block;
 
       .user-avatar {
-        border: 4px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        transition: all 0.3s ease;
-        position: relative;
+        border: 4px solid rgba(var(--q-primary-rgb), 0.2);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 
-        &:hover {
-          transform: scale(1.05);
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        img {
-          border-radius: 50%;
+        // 优化图片填充和居中
+        :deep(img) {
+          object-fit: cover;
+          width: 100%;
+          height: 100%;
+          display: block;
         }
       }
 
       .avatar-ring {
         position: absolute;
-        top: -6px;
-        left: -6px;
-        right: -6px;
-        bottom: -6px;
+        width: 100%;
+        height: 100%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(1.1);
         border: 2px solid $primary;
         border-radius: 50%;
         opacity: 0;
-        animation: pulse-ring 2s infinite;
-      }
-
-      .online-indicator {
-        position: absolute;
-        bottom: 8px;
-        right: 8px;
-        width: 24px;
-        height: 24px;
-        background: #4caf50;
-        border: 3px solid white;
-        border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        animation: pulse-dot 2s infinite;
+        animation: pulse-ring 2s infinite alternate;
+        pointer-events: none;
       }
     }
 
@@ -235,14 +231,6 @@ const greeting = computed(() => {
 
         .supporter-badge {
           animation: sparkle 2s ease-in-out infinite;
-        }
-
-        .country-badge {
-          transition: transform 0.2s ease;
-
-          &:hover {
-            transform: scale(1.1);
-          }
         }
       }
     }
@@ -299,6 +287,47 @@ const greeting = computed(() => {
   }
 }
 
+.cta-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0; // 桌面端 gap 由按钮自身 margin 控制
+
+  // 移动端竖直排列并加间距
+  @media (max-width: 600px) {
+    flex-direction: column;
+
+    .q-btn {
+      width: auto;
+      max-width: auto;
+      margin-left: 30px;
+      margin-right: 30px;
+      margin-bottom: 16px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+@media (max-width: 600px), (orientation: portrait) {
+  .cta-buttons {
+    flex-direction: column;
+    align-items: stretch;
+
+    .q-btn {
+      margin-bottom: 16px;
+      margin-right: 0 !important;
+    }
+
+    .q-btn:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
 // 动画定义
 @keyframes fadeInDown {
   from {
@@ -313,31 +342,12 @@ const greeting = computed(() => {
 
 @keyframes pulse-ring {
   0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1.05);
+    opacity: 0.7;
   }
   100% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-}
-
-@keyframes pulse-dot {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-  50% {
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 0;
   }
 }
 

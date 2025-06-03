@@ -57,22 +57,28 @@
         </p>
       </div>
 
-      <!-- 无限滚动得分列表 -->
-      <q-infinite-scroll
-        v-if="playHistoryStore.scores.length > 0"
-        @load="onLoadMore"
-        :offset="250"
-        :disable="!playHistoryStore.hasMore || playHistoryStore.isLoadingMore"
+      <!-- 得分列表 -->
+      <q-list
+        v-if="scoresWithin24h.length > 0"
+        bordered
+        separator
+        class="score-list bg-dark-elevated rounded-borders"
       >
-        <q-list bordered separator class="score-list bg-dark-elevated rounded-borders">
-          <ScoreListItem v-for="score in playHistoryStore.scores" :key="score.id" :score="score" />
-        </q-list>
-        <template v-slot:loading>
-          <div class="row justify-center q-my-md">
-            <q-spinner-dots color="primary" size="40px" />
-          </div>
-        </template>
-      </q-infinite-scroll>
+        <ScoreListItem v-for="score in scoresWithin24h" :key="score.id" :score="score" />
+      </q-list>
+
+      <!-- 加载更多按钮 -->
+      <div v-if="showLoadMore" class="row justify-center q-my-md">
+        <q-btn
+          label="获取更多"
+          color="primary"
+          :loading="playHistoryStore.isLoadingMore"
+          @click="onLoadMoreBtn"
+          unelevated
+          rounded
+          icon="expand_more"
+        />
+      </div>
 
       <!-- 加载更多失败提示 -->
       <div
@@ -86,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue';
+import { onMounted, watch, computed } from 'vue';
 import { usePlayHistoryStore } from 'src/stores/playHistory';
 import { useAuthStore } from 'src/services/auth';
 import ScoreListItem from 'src/components/ScoreListItem.vue';
@@ -95,6 +101,7 @@ const authStore = useAuthStore();
 
 const refreshScores = () => {
   if (authStore.user?.id) {
+    // limit参数由store内部控制
     void playHistoryStore.fetchScores(authStore.user.id, 'osu');
   } else {
     playHistoryStore.clearScores();
@@ -102,14 +109,27 @@ const refreshScores = () => {
   }
 };
 
-// 无限滚动加载更多
-const onLoadMore = async (index: number, done: (stop?: boolean) => void) => {
-  if (!authStore.user?.id || !playHistoryStore.hasMore) {
-    done(true); // 没有用户或没有更多数据，停止
-    return;
-  }
-  await playHistoryStore.loadMoreRecentScores(authStore.user.id, 'osu');
-  done(!playHistoryStore.hasMore); // 如果还有更多数据，不停止；否则停止
+// 只展示24小时内的成绩
+const scoresWithin24h = computed(() => {
+  const now = Date.now();
+  return playHistoryStore.scores.filter((score) => {
+    const created = new Date(score.created_at).getTime();
+    return now - created <= 24 * 60 * 60 * 1000;
+  });
+});
+
+// “获取更多”按钮逻辑：只要有更多且最后一条在24小时内就显示
+const showLoadMore = computed(() => {
+  if (!playHistoryStore.hasMore || scoresWithin24h.value.length === 0) return false;
+  const last = playHistoryStore.scores[playHistoryStore.scores.length - 1];
+  if (!last) return false;
+  const lastTime = new Date(last.created_at).getTime();
+  return Date.now() - lastTime <= 24 * 60 * 60 * 1000;
+});
+
+const onLoadMoreBtn = () => {
+  if (!authStore.user?.id || !playHistoryStore.hasMore) return;
+  playHistoryStore.loadMoreRecentScores();
 };
 
 onMounted(() => {

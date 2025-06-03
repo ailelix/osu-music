@@ -110,7 +110,6 @@ interface NavLink {
 
 const primaryNavLinks: NavLink[] = [
   { title: 'Home', icon: 'home', to: '/', name: 'home' },
-  { title: 'Browse', icon: 'explore', to: '/browse', name: 'browse' },
   { title: 'Search', icon: 'search', to: '/search', name: 'search' },
 ];
 

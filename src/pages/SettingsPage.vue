@@ -71,7 +71,7 @@
         <q-card class="settings-card" flat bordered>
           <q-card-section>
             <div class="text-h6">About</div>
-            <div class="text-caption text-grey-6 q-mt-xs">Information about Osu! Music Fusion.</div>
+            <div class="text-caption text-grey-6 q-mt-xs">Information about Osu! Music</div>
           </q-card-section>
           <q-separator dark />
           <q-card-section>

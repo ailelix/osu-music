@@ -15,13 +15,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/IndexPage.vue'),
         meta: { title: 'Home', icon: 'home' },
       },
-      // 浏览页
-      {
-        path: 'browse', // 访问 '/browse'
-        name: 'browse',
-        component: () => import('pages/BrowsePage.vue'), // 你需要创建这个页面
-        meta: { title: 'Browse', icon: 'explore' },
-      },
       // 播放器页
       {
         path: 'player', // 访问 '/player'
