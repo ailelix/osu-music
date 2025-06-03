@@ -2,7 +2,57 @@
   <q-page class="index-page q-pa-md">
     <!-- Welcome Section -->
     <section class="welcome-section text-center q-py-xl">
-      <div class="text-overline text-primary q-mb-sm">Welcome Back!</div>
+      <!-- User Profile Header -->
+      <div v-if="authStore.isAuthenticated && authStore.user" class="user-profile-header q-mb-lg">
+        <div class="user-avatar-container">
+          <q-avatar size="120px" class="user-avatar">
+            <img :src="authStore.user.avatar_url" :alt="authStore.user.username" />
+            <div class="avatar-ring"></div>
+          </q-avatar>
+          <div class="online-indicator"></div>
+        </div>
+        <div class="user-info q-mt-md">
+          <h2 class="text-h4 text-weight-bold q-mb-xs user-name">
+            {{ authStore.user.username }}
+          </h2>
+          <div class="user-badges q-mb-sm">
+            <q-chip
+              v-if="authStore.user.is_supporter"
+              color="pink"
+              text-color="white"
+              icon="favorite"
+              size="sm"
+              class="supporter-badge"
+            >
+              Supporter
+            </q-chip>
+            <q-chip
+              :label="authStore.user.country_code"
+              color="primary"
+              text-color="white"
+              size="sm"
+              class="country-badge"
+            >
+              <q-avatar size="18px" class="q-mr-xs">
+                <img
+                  :src="`https://osu.ppy.sh/images/flags/${authStore.user.country_code.toLowerCase()}.png`"
+                  :alt="authStore.user.country_code"
+                />
+              </q-avatar>
+            </q-chip>
+          </div>
+          <div class="text-overline text-primary">Welcome Back!</div>
+        </div>
+      </div>
+
+      <!-- Default Welcome for Non-authenticated Users -->
+      <div v-else class="default-welcome">
+        <div class="text-overline text-primary q-mb-sm">Welcome!</div>
+        <div class="welcome-icon q-mb-md">
+          <q-icon name="music_note" size="80px" color="primary" class="animated-icon" />
+        </div>
+      </div>
+
       <h1 class="text-h2 text-weight-bold q-mb-md animated-greeting">{{ greeting }}</h1>
       <p
         class="text-subtitle1 text-grey-7 q-mb-lg"
@@ -106,6 +156,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useAuthStore } from 'src/services/auth';
+
+const authStore = useAuthStore();
+
 const greeting = computed(() => {
   const hour = new Date().getHours();
   if (hour < 5) return 'Good Night';
@@ -117,9 +171,95 @@ const greeting = computed(() => {
 
 <style lang="scss" scoped>
 .welcome-section {
+  .user-profile-header {
+    .user-avatar-container {
+      position: relative;
+      display: inline-block;
+
+      .user-avatar {
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        position: relative;
+
+        &:hover {
+          transform: scale(1.05);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        img {
+          border-radius: 50%;
+        }
+      }
+
+      .avatar-ring {
+        position: absolute;
+        top: -6px;
+        left: -6px;
+        right: -6px;
+        bottom: -6px;
+        border: 2px solid $primary;
+        border-radius: 50%;
+        opacity: 0;
+        animation: pulse-ring 2s infinite;
+      }
+
+      .online-indicator {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        width: 24px;
+        height: 24px;
+        background: #4caf50;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        animation: pulse-dot 2s infinite;
+      }
+    }
+
+    .user-info {
+      .user-name {
+        background: linear-gradient(45deg, $primary, #ff6b9d);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: gradient-shift 3s ease-in-out infinite;
+      }
+
+      .user-badges {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+
+        .supporter-badge {
+          animation: sparkle 2s ease-in-out infinite;
+        }
+
+        .country-badge {
+          transition: transform 0.2s ease;
+
+          &:hover {
+            transform: scale(1.1);
+          }
+        }
+      }
+    }
+  }
+
+  .default-welcome {
+    .welcome-icon {
+      .animated-icon {
+        animation: float 3s ease-in-out infinite;
+      }
+    }
+  }
+
   .animated-greeting {
     animation: fadeInDown 0.8s ease-out;
   }
+
   .explore-btn {
     transition:
       transform 0.2s ease-out,
@@ -144,6 +284,7 @@ const greeting = computed(() => {
   margin-right: auto;
   margin-bottom: 2rem;
 }
+
 .placeholder-card {
   min-height: 150px;
   display: flex;
@@ -157,6 +298,8 @@ const greeting = computed(() => {
     transform: translateY(-4px);
   }
 }
+
+// 动画定义
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -165,6 +308,74 @@ const greeting = computed(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background: linear-gradient(45deg, $primary, #ff6b9d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  50% {
+    background: linear-gradient(45deg, #ff6b9d, $primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
   }
 }
 </style>

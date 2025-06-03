@@ -46,8 +46,15 @@ onMounted(() => {
           // 从Electron主进程获取存储的授权码
           const response = await window.electron?.ipcRenderer?.invoke('get-pending-oauth-code');
           console.log('[App.vue] Response from main process:', response);
-          
-          if (response && typeof response === 'object' && 'success' in response && response.success && 'code' in response && response.code) {
+
+          if (
+            response &&
+            typeof response === 'object' &&
+            'success' in response &&
+            response.success &&
+            'code' in response &&
+            response.code
+          ) {
             console.log('[App.vue] Retrieved OAuth code from main process:', response.code);
             // 将授权码存储到authStore中
             authStore.setPendingOAuthCode(response.code as string);
