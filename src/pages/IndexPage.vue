@@ -50,7 +50,7 @@
             Community Hot Picks
           </h2>
           <div class="recommend-section">
-            <q-card flat bordered class="placeholder-card">
+            <q-card flat bordered class="placeholder-card bg-grey-9" @click="handleCommunityPicksClick">
               <q-card-section class="text-center">
                 <q-icon name="whatshot" size="lg" color="deep-orange" class="q-mb-sm" />
                 <div class="text-subtitle2">Top tracks from the Osu! community.</div>
@@ -66,7 +66,7 @@
             Just For You
           </h2>
           <div class="recommend-section">
-            <q-card flat bordered class="placeholder-card">
+            <q-card flat bordered class="placeholder-card bg-grey-9" @click="handleForYouClick">
               <q-card-section class="text-center">
                 <q-icon name="album" size="lg" color="light-blue" class="q-mb-sm" />
                 <div class="text-subtitle2">Personalized based on your listening.</div>
@@ -82,7 +82,7 @@
             Explore by Tags
           </h2>
           <div class="recommend-section">
-            <q-card flat bordered class="placeholder-card">
+            <q-card flat bordered class="placeholder-card bg-grey-9" @click="handleExploreByTagsClick">
               <q-card-section class="text-center">
                 <q-icon name="tag" size="lg" color="green" class="q-mb-sm" />
                 <div class="text-subtitle2">Discover music through popular tags.</div>
@@ -137,6 +137,21 @@ function handleLogout() {
     icon: 'info',
   });
   router.push({ name: 'home' }).catch(() => { });
+}
+
+function handleCommunityPicksClick() {
+  console.log('Community Hot Picks card clicked!');
+  $q.notify('Community Hot Picks clicked (Coming Soon)');
+}
+
+function handleForYouClick() {
+  console.log('Just For You card clicked!');
+  $q.notify('Just For You clicked (Coming Soon)');
+}
+
+function handleExploreByTagsClick() {
+  console.log('Explore by Tags card clicked!');
+  $q.notify('Explore by Tags clicked (Coming Soon)');
 }
 </script>
 
@@ -236,17 +251,17 @@ function handleLogout() {
 }
 
 .placeholder-card {
-  min-height: calc(150px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  cursor: pointer;
+  background-color: $drawer-bg;
   transition:
     box-shadow 0.3s ease-in-out,
-    transform 0.3s ease-in-out;
+    transform 0.3s ease-in-out,
+    background-color 0.3s ease-in-out;
 
   &:hover {
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    transform: translateY(-5px) scale(1.02);
+    background-color: lighten($drawer-bg, 5%);
   }
 }
 

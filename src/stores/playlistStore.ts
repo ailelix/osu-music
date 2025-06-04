@@ -1,0 +1,273 @@
+// src/stores/playlistStore.ts
+import { defineStore } from 'pinia';
+import axios from 'axios';
+
+export interface PlaylistTrack {
+  beatmapsetId: number;
+  title: string;
+  artist: string;
+  duration: number; // 秒
+  bpm: number;
+  addedAt: string; // ISO 8601 timestamp
+}
+
+export interface Playlist {
+  id: string;
+  name: string;
+  description: string;
+  coverImage: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+  trackCount: number;
+  totalDuration: number; // 秒
+  tags: string[];
+  tracks: PlaylistTrack[];
+}
+
+interface PlaylistState {
+  playlists: Playlist[];
+  currentPlaylist: Playlist | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export const usePlaylistStore = defineStore('playlist', {
+  state: (): PlaylistState => ({
+    playlists: [],
+    currentPlaylist: null,
+    isLoading: false,
+    error: null,
+  }),
+
+  getters: {
+    // 获取默认歌单（我的收藏）
+    defaultPlaylist: (state) => state.playlists.find((p) => p.isDefault),
+
+    // 获取自定义歌单
+    customPlaylists: (state) => state.playlists.filter((p) => !p.isDefault),
+
+    // 获取所有歌单，默认收藏排在第一位
+    allPlaylistsSorted: (state) => {
+      return state.playlists.slice().sort((a, b) => {
+        // 默认歌单排在最前面
+        if (a.isDefault && !b.isDefault) return -1;
+        if (!a.isDefault && b.isDefault) return 1;
+        // 其他按创建时间排序
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    },
+
+    // 获取歌单的动态封面图片
+    getPlaylistCover: (state) => (playlistId: string) => {
+      const playlist = state.playlists.find((p) => p.id === playlistId);
+      if (!playlist || playlist.tracks.length === 0) {
+        return '/icons/favicon-128x128.png'; // 默认封面
+      }
+
+      // 使用第一首歌的 osu 封面
+      const firstTrack = playlist.tracks[0];
+      if (firstTrack) {
+        return `https://assets.ppy.sh/beatmaps/${firstTrack.beatmapsetId}/covers/cover.jpg`;
+      }
+      return '/icons/favicon-128x128.png';
+    },
+
+    // 根据标签筛选歌单
+    getPlaylistsByTag: (state) => (tag: string) =>
+      state.playlists.filter((p) => p.tags.includes(tag)),
+
+    // 获取总歌曲数量
+    totalTracks: (state) =>
+      state.playlists.reduce((total, playlist) => total + playlist.trackCount, 0),
+
+    // 获取总播放时长（分钟）
+    totalDurationMinutes: (state) =>
+      Math.round(
+        state.playlists.reduce((total, playlist) => total + playlist.totalDuration, 0) / 60,
+      ),
+  },
+
+  actions: {
+    /**
+     * 加载所有歌单
+     */
+    async loadPlaylists() {
+      this.isLoading = true;
+      this.error = null;
+
+      try {
+        // 获取歌单文件列表
+        const playlistFiles = ['my-favorites.json', 'electronic-vibes.json', 'chill-anime.json'];
+
+        const playlists: Playlist[] = [];
+
+        // 加载每个歌单文件
+        for (const filename of playlistFiles) {
+          try {
+            const response = await axios.get(`/playlists/${filename}`);
+            playlists.push(response.data);
+          } catch (fileError) {
+            console.warn(`Failed to load playlist: ${filename}`, fileError);
+          }
+        }
+
+        this.playlists = playlists.sort((a, b) => {
+          // 默认歌单排在最前面
+          if (a.isDefault && !b.isDefault) return -1;
+          if (!a.isDefault && b.isDefault) return 1;
+          // 其他按创建时间排序
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        console.log(`Loaded ${this.playlists.length} playlists`);
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to load playlists';
+        console.error('Error loading playlists:', error);
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    /**
+     * 设置当前播放的歌单
+     */
+    setCurrentPlaylist(playlist: Playlist) {
+      this.currentPlaylist = playlist;
+    },
+
+    /**
+     * 根据ID获取歌单
+     */
+    getPlaylistById(id: string): Playlist | undefined {
+      return this.playlists.find((p) => p.id === id);
+    },
+
+    /**
+     * 添加歌曲到指定歌单
+     */
+    addTrackToPlaylist(playlistId: string, track: Omit<PlaylistTrack, 'addedAt'>) {
+      const playlist = this.getPlaylistById(playlistId);
+      if (!playlist) {
+        throw new Error('Playlist not found');
+      }
+
+      // 检查歌曲是否已存在
+      const exists = playlist.tracks.some((t) => t.beatmapsetId === track.beatmapsetId);
+      if (exists) {
+        throw new Error('Track already exists in playlist');
+      }
+
+      const newTrack: PlaylistTrack = {
+        ...track,
+        addedAt: new Date().toISOString(),
+      };
+
+      playlist.tracks.push(newTrack);
+      playlist.trackCount = playlist.tracks.length;
+      playlist.totalDuration = playlist.tracks.reduce((total, t) => total + t.duration, 0);
+      playlist.updatedAt = new Date().toISOString();
+
+      // TODO: 在实际应用中，这里应该保存到服务器或本地存储
+      console.log(`Added track "${track.title}" to playlist "${playlist.name}"`);
+    },
+
+    /**
+     * 从歌单中移除歌曲
+     */
+    removeTrackFromPlaylist(playlistId: string, beatmapsetId: number) {
+      const playlist = this.getPlaylistById(playlistId);
+      if (!playlist) {
+        throw new Error('Playlist not found');
+      }
+
+      const trackIndex = playlist.tracks.findIndex((t) => t.beatmapsetId === beatmapsetId);
+      if (trackIndex === -1) {
+        throw new Error('Track not found in playlist');
+      }
+
+      const removedTrack = playlist.tracks.splice(trackIndex, 1)[0];
+      if (removedTrack) {
+        playlist.trackCount = playlist.tracks.length;
+        playlist.totalDuration = playlist.tracks.reduce((total, t) => total + t.duration, 0);
+        playlist.updatedAt = new Date().toISOString();
+
+        console.log(`Removed track "${removedTrack.title}" from playlist "${playlist.name}"`);
+      }
+    },
+
+    /**
+     * 创建新歌单
+     */
+    createPlaylist(name: string, description: string = '', tags: string[] = []): Playlist {
+      const newPlaylist: Playlist = {
+        id: `custom-${Date.now()}`,
+        name,
+        description,
+        coverImage: '/icons/favicon-128x128.png',
+        isDefault: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        trackCount: 0,
+        totalDuration: 0,
+        tags,
+        tracks: [],
+      };
+
+      this.playlists.push(newPlaylist);
+
+      // TODO: 在实际应用中，这里应该保存到服务器或本地存储
+      console.log(`Created new playlist: "${name}"`);
+
+      return newPlaylist;
+    },
+
+    /**
+     * 删除歌单
+     */
+    async deletePlaylist(playlistId: string): Promise<void> {
+      const playlist = this.getPlaylistById(playlistId);
+      if (!playlist) {
+        throw new Error('Playlist not found');
+      }
+
+      if (playlist.isDefault) {
+        throw new Error('Cannot delete default playlist');
+      }
+
+      const index = this.playlists.findIndex((p) => p.id === playlistId);
+      this.playlists.splice(index, 1);
+
+      if (this.currentPlaylist?.id === playlistId) {
+        this.currentPlaylist = null;
+      }
+
+      console.log(`Deleted playlist: "${playlist.name}"`);
+
+      // TODO: 在实际应用中，这里应该保存到服务器或本地存储
+      return Promise.resolve();
+    },
+
+    /**
+     * 格式化播放时长
+     */
+    formatDuration(seconds: number): string {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    },
+
+    /**
+     * 格式化总时长
+     */
+    formatTotalDuration(seconds: number): string {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      }
+      return `${minutes}m`;
+    },
+  },
+});

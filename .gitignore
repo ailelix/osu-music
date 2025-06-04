@@ -1,7 +1,11 @@
+# macOS and Windows system files
 .DS_Store
 .thumbs.db
+
+# Node.js dependencies
 node_modules
 package-lock.json
+yarn.lock
 
 # Quasar core related directories
 .quasar
@@ -18,18 +22,82 @@ package-lock.json
 /src-capacitor/www
 /src-capacitor/node_modules
 
+# Electron distribution
+/dist-electron
+
 # Log files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
 # Editor directories and files
 .idea
+.vscode/settings.json
+.vscode/launch.json
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
+*.swp
+*.swo
+*~
 
-# local .env files
-.env.local*
-package-lock.json
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Music Library specific ignores
+# ================================
+
+# User music files (only keep demo files)
+/public/music/*
+!/public/music/1234567-Senbonzakura.mp3
+!/public/music/2345678-Through_the_Fire_and_Flames.mp3
+!/public/music/3456789-Blue_Zenith.mp3
+!/public/music/4567890-Necrofantasia.mp3
+!/public/music/5678901-FREEDOM_DiVE.mp3
+
+# User playlists (keep example playlists)
+/public/playlists/*
+!/public/playlists/my-favorites.json
+!/public/playlists/chill-anime.json
+!/public/playlists/electronic-vibes.json
+
+# Local storage and cache
+/storage/
+/cache/
+/temp/
+
+# User configuration files
+/config/local.json
+/config/user-*.json
+
+# Osu! API credentials and tokens
+/config/osu-credentials.json
+.osu-token
+oauth-tokens.json
+
+# Music metadata database
+/data/music.db
+/data/playlists.db
+/data/*.sqlite
+/data/*.sqlite3
+
+# Downloaded covers and thumbnails
+/public/covers/user-*
+/public/thumbnails/cache-*
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp
+
+# Audio processing cache
+/audio-cache/
+/waveforms/
+
+# Build artifacts
+/build/
+/out/

@@ -1,3 +1,4 @@
+# iOS Build artifacts
 App/build
 App/Pods
 App/output
@@ -5,9 +6,23 @@ App/App/public
 DerivedData
 xcuserdata
 
+# Xcode user data
+*.xcuserstate
+project.xcworkspace/
+*.xcuserdatad/
+
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins
 
 # Generated Config files
 App/App/capacitor.config.json
 App/App/config.xml
+
+# iOS specific music cache
+App/Documents/MusicCache/
+App/Library/Caches/
+
+# iOS keychain and certificates
+*.p12
+*.mobileprovision
+*.certSigningRequest
