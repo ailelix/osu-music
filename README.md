@@ -171,24 +171,6 @@ npx cap open android
 
 > **注意**: 目前移动端开发（尤其是ios）受到capacitor限制而举步维艰，建议以桌面端为主进行开发。
 
-## 项目结构 📁
-
-```
-osu-music/
-├── src/
-│   ├── components/          # Vue 组件
-│   ├── pages/              # 页面组件
-│   ├── stores/             # Pinia 状态管理
-│   ├── services/           # API 服务
-│   ├── layouts/            # 布局组件
-│   └── assets/             # 静态资源
-├── src-electron/           # Electron 主进程代码
-├── public/                 # 公共资源
-│   ├── music/              # 示例音乐文件
-│   └── playlists/          # 示例播放列表
-└── ios/                    # iOS 项目文件
-```
-
 ## 许可证 📄
 
 本项目采用 MIT 许可证 - 详情请查看 [LICENSE](LICENSE) 文件。
