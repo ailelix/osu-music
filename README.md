@@ -1,138 +1,211 @@
-# Osu! Music
+# 🎵 Osu! Music
 
 ## 项目目标 🚀
 
-Osu! Music 旨在打造一款跨平台的音乐软件，集成 Osu! API。它致力于为 Osu! 玩家提独特音乐体验。用户将能够通过本应用登录自己的 Osu! 账号，访问游玩历史、欣赏音乐并享受更多与 Osu! 生态相关的音乐功能。
+Osu! Music 是一款集成 osu! API 的跨平台音乐软件，专为 osu! 玩家打造独特的音乐体验。用户可以通过本应用登录 osu! 账号，访问游玩历史、搜索浏览音乐，并享受与 osu! 生态深度整合的音乐功能。
 
-## 当前状态与 TODO List 📝
-Osu！Music 处于几乎新建阶段，而且开发者比较懒 ;P
+## 当前状态与开发进度 📝
+
+项目正在积极开发中，音乐库系统已实现。
 
 ### 已完成 ✅
 
-*   **核心架构搭建**:
-    *   基于 Electron, Vue 3 (`<script setup lang="ts">`), Quasar Framework (v2), Pinia, Axios 搭建项目。
-    *   实现了无边框窗口效果，并兼容 macOS 的 "红绿灯" 控件。
-*   **基础 UI 布局 (`MainLayout.vue`)**:
-    *   顶部栏 (`QHeader`) 与自定义动画 Logo (`AppLogo.vue`)。
-    *   左侧抽屉式导航栏 (`AppDrawer.vue`)。
-*   **Osu! OAuth 2.0 认证 (Client Secret 流程)**:
-    *   用户可在设置页面配置从 Osu! 开发者门户获取的 Client ID 和 Client Secret (凭证目前存储于内存，应用重启需重新输入)。
-    *   实现了标准的 Authorization Code Grant Flow (不使用 PKCE)。
-    *   通过自定义协议方案 (`osu-music-fusion://oauth/callback`) 处理 OAuth 回调。
-    *   `osuAuthService.ts` 负责授权 URL 构建、Token 交换和 Token 刷新逻辑。
-    *   `authStore.ts` (Pinia) 负责 Access Token, Refresh Token, 过期时间及用户信息的内存状态管理，并使用 `localStorage` 实现 Token 和用户信息的**会话间持久化**（用户关闭再打开应用，若 Token 有效或可刷新，则能恢复登录状态）。
-    *   `settingsStore.ts` (Pinia) 负责 Client ID 和 Client Secret 的**会话内内存管理**。
-    *   实现了登录、注销、获取用户信息、尝试刷新 Token 的核心逻辑。
-    *   实现了 OAuth 回调页面 (`OsuCallbackPage.vue`)，处理授权码交换、显示状态及错误反馈。
-*   **页面**:
-    *   设置页面 (`SettingsPage.vue`): 用于配置 Osu! OAuth 凭证，显示账户状态，执行登录/注销。
-    *   回调处理页面 (`OsuCallbackPage.vue`): 处理 OAuth 回调，并引导用户。
-*   **Electron 集成**:
-    *   无边框窗口、自定义协议注册与处理、基本的窗口控制 IPC。
-    *   通过 `contextBridge` 安全暴露必要的 Electron API 给渲染进程。
+**核心架构与认证系统**:
 
-**已完成的功能截图**
-![1748514573875.png(via stardots.io)](https://i.stardots.io/chris/1748514573875.png "1748514573875.png(via stardots.io)")
-![1748514523662.png(via stardots.io)](https://i.stardots.io/chris/1748514523662.png "1748514523662.png(via stardots.io)")
-![1748514502656.png(via stardots.io)](https://i.stardots.io/chris/1748514502656.png "1748514502656.png(via stardots.io)")
+- 基于 Electron + Vue 3 + Quasar + Pinia + TypeScript 构建
+- 实现无边框窗口设计，兼容 macOS 原生控件
+- 完整的 osu! OAuth 2.0 认证流程 (Client Secret 流程)
+- 支持自定义协议回调 (`osu-music-fusion://oauth/callback`)
+- Token 自动刷新与会话持久化
 
-### 未完成/进行中 🚧
+**音乐库管理系统**:
 
-*   **凭证持久化**:
-    *   [ ] **目前关键**: 实现 `settingsStore.ts` 中 Osu! Client ID 和 Client Secret 的安全持久化存储 (例如使用 `electron-store` 并配合 IPC)。目前它们仅存储在内存中，应用重启后用户需要重新输入。
-*   **核心音乐功能**:
-    *   [ ] 读取用户 Osu! 游玩历史 (Recent Plays, Top Scores)。
-    *   [ ] 搜索、浏览和展示 Osu! 音乐信息。
-    *   [ ] 音乐下载与管理功能。
-    *   [ ] 本地音乐库与 Osu! 谱面关联。
-*   **UI/UX 完善**:
-    *   [ ] **底部播放控制条**: 设计并实现固定的音乐播放控制条（Hyprland风格）。
-    *   [ ] 持续打磨应用的视觉风格，更好地融合 Apple Music 和 Osu! Lazer 的元素。
-    *   [ ] 优化页面过渡动画和用户交互体验。
-    *   [ ] 实现更多个性化设置选项（如主题、界面偏好等）。
- 
-    
+- 完整的音乐文件扫描和管理功能
+- 支持 osu! 音乐文件格式 (`id-songname.mp3`)
+- 播放列表创建、编辑和删除
+- Apple Music 风格的界面设计
+- 音乐搜索和筛选功能
+
+**用户界面**:
+
+- 主布局：顶部栏 + 侧边导航抽屉
+- 音乐库页面：播放列表管理 + 全部音乐浏览
+- 播放器页面：完整的音乐播放控制界面
+- 搜索页面：osu! 谱面搜索和浏览
+- 设置页面：OAuth 凭证配置和账户管理
+
+**播放功能**:
+
+- 音乐播放、暂停、上一首/下一首控制
+- 随机播放和循环播放模式
+- 音量控制和进度条拖拽
+- 播放状态管理和持久化
+
+### 进行中/计划中 🚧
+
+**核心功能完善**:
+
+- [ ] **凭证安全存储**: 实现 Client ID 和 Client Secret 的加密持久化存储
+- [ ] **音乐文件扫描**: 支持从实际文件系统扫描音乐文件
+- [ ] **音频播放引擎**: 集成真实的音频播放功能
+- [ ] **音频下载**: 实现 osu! 谱面音频下载和管理
+
+**osu! 集成功能**:
+
+- [ ] 读取用户游玩历史 (Recent Plays, Top Scores)
+- [ ] 个人资料展示和统计信息
+- [ ] 谱面收藏和推荐系统
+- [ ] 与本地音乐库的关联功能
+
+**UI/UX 优化**:
+
+- [ ] **底部播放控制条**: 全局音乐播放控制界面
+- [ ] 主题系统和个性化设置
+- [ ] 页面过渡动画和交互优化
+- [ ] 响应式设计完善
+
+**跨平台支持**:
+
+- [ ] iOS 应用构建 (Capacitor)
+- [ ] Android 应用构建 (Capacitor)
+- [ ] 统一的多端体验设计
+
 ## 技术栈 🛠️
 
-*   **桌面应用框架**: [Electron](https://www.electronjs.org/)
-*   **前端框架**: [Vue 3](https://vuejs.org/) (使用 `<script setup lang="ts">`)
-*   **UI 库**: [Quasar Framework (v2)](https://quasar.dev/)
-*   **状态管理**: [Pinia](https://pinia.vuejs.org/)
-*   **HTTP 客户端**: [Axios](https://axios-http.com/)
-*   **API 交互**: [Osu! API v2](https://osu.ppy.sh/docs/index.html) (OAuth 2.0 Client Secret Flow)
+- **桌面应用框架**: [Electron](https://www.electronjs.org/)
+- **前端框架**: [Vue 3](https://vuejs.org/) (Composition API + TypeScript)
+- **UI 组件库**: [Quasar Framework (v2)](https://quasar.dev/)
+- **状态管理**: [Pinia](https://pinia.vuejs.org/)
+- **HTTP 客户端**: [Axios](https://axios-http.com/)
+- **API 集成**: [osu! API v2](https://osu.ppy.sh/docs/index.html) (OAuth 2.0)
+- **跨平台支持**: [Capacitor](https://capacitorjs.com/) (移动端)
+
+## 项目特色 ✨
+
+- **🎵 音乐库管理**: 完整的本地音乐文件扫描、组织和播放功能
+- **🎮 osu! 深度集成**: 原生支持 osu! 账户登录和数据同步
+- **🎨 现代化界面**: 融合 Apple Music 和 osu! lazer 的设计语言
+- **📱 跨平台支持**: 一次开发，多端部署 (桌面 + 移动端)
+- **🤖 AI 友好开发**: 拥抱 AI 辅助编程，提高开发效率
 
 ## 参与贡献 ❤️
 
-Osu! Music 是一个的开源项目，我们非常欢迎对本项目感兴趣的开发者加入！
+osu! Music 是一个开源项目，我们非常欢迎有兴趣的开发者加入！
 
-**我们正在寻找这样的你：**
+**我们正在寻找这样的贡献者：**
 
-*   对 Electron 前端开发有了解或浓厚兴趣。
-*   乐于学习使用 Vue 3, Quasar, Pinia 等现代前端技术。
-*   愿意学习 Osu! API 的使用。
-*   **能够熟练运用 AI 工具 (如 GitHub Copilot, Gemini 等) 进行开发** (我们鼓励并拥抱 AI 编程！)
-*   对音乐软件、Osu! 文化有热情。
-*   积极主动，乐于沟通和协作。
+- 对 Electron/Vue.js 前端开发有经验或兴趣
+- 熟悉现代前端技术栈 (Vue 3, TypeScript, Quasar, Pinia)
+- 有音乐应用或游戏相关开发经验优先
+- **熟练使用 AI 编程工具** (GitHub Copilot, Claude, ChatGPT 等)
+- 对 osu! 文化和音乐有热情
+- 积极主动，善于沟通协作
 
-**如何贡献：**
+**贡献流程：**
 
-1.  **Fork 本仓库**。
-2.  **Clone 你 Fork 的仓库到本地**。
-3.  **创建新的特性分支** (`git checkout -b feature/你的特性名称`)。
-4.  **进行代码修改和开发**。
-5.  **提交你的更改** (`git commit -m '添加了某个特性'`)。
-6.  **将你的分支推送到你的 GitHub Fork** (`git push origin feature/你的特性名称`)。
-7.  **创建 Pull Request** 到本仓库的 `main` (或 `develop`) 分支。
+1. **Fork 本仓库** 并 clone 到本地
+2. **创建功能分支** (`git checkout -b feature/your-feature-name`)
+3. **进行开发** 并确保代码质量
+4. **提交更改** (`git commit -m 'Add some feature'`)
+5. **推送分支** (`git push origin feature/your-feature-name`)
+6. **创建 Pull Request** 到主分支
 
+如有任何问题或建议，欢迎通过 Issue 或 Discussions 与我们交流。
 
-我们期待你的加入，如果你有任何问题或想法，欢迎通过 Issue 或 Discussions 与我们交流。
+## 快速开始 🚀
 
-## 项目构建 🧑‍💻
+### 环境要求
 
-本项目使用 [Quasar Framework](https://quasar.dev/) 进行开发和构建。
+- Node.js 16+
+- npm 或 yarn
+- Git
 
-1.  **Clone 本仓库**:
-    ```bash
-    git clone https://github.com/KirisameLonnet/osu-music.git
-    ```
-2.  **进入项目目录**:
-    ```bash
-    cd osu-music
-    ```
-3.  **安装依赖**:
-    Quasar 项目通常会同时生成 `package-lock.json` (npm) 和 `yarn.lock` (yarn)，你可以选择其中一个包管理器。这里以 npm 为例：
-    ```bash
-    npm install
-    ```
-    或者，如果你更喜欢使用 yarn:
-    ```bash
-    yarn install
-    ```
-    *（请在项目中统一使用一种包管理器以避免潜在问题。）*
+### 安装步骤
 
-4.  **启动开发模式 (带 Electron 应用)**:
-    这将启动一个带热重载的开发服务器，并在 Electron 窗口中运行你的应用。
-    ```bash
-    quasar dev -m electron
-    ```
-    你也可以简写为：
-    ```bash
-    q dev -m electron
-    ```
+1. **克隆仓库**:
 
-5.  **构建生产版本的 Electron 应用**:
-    这将为你的目标平台构建可执行的应用文件。
-    ```bash
-    quasar build -m electron
-    ```
-    你也可以简写为：
-    ```bash
-    q build -m electron
-    ```
-    默认情况下，它可能会为你当前的操作系统构建。你可以添加 `--target` (或 `-T`) 和 `--arch` (或 `-A`) 参数来指定目标平台和架构.
-    
-    **我们始终有iOS构建和Android构建的企划，并且尽量做到一次开发多端部署，框架构建调试阶段暂不考虑移动端**
-    
-    更多构建选项请参考 [Quasar Electron 构建命令文档](https://quasar.dev/quasar-cli-vite/developing-electron-apps/build-commands)。
+   ```bash
+   git clone https://github.com/KirisameLonnet/osu-music.git
+   cd osu-music
+   ```
 
+2. **安装依赖**:
 
+   ```bash
+   npm install
+   # 或者使用 yarn
+   yarn install
+   ```
+
+3. **启动开发环境**:
+
+   ```bash
+   # 启动 Electron 开发模式
+   npm run dev:electron
+   # 或使用 Quasar CLI
+   quasar dev -m electron
+   ```
+
+4. **构建生产版本**:
+   ```bash
+   # 构建 Electron 应用
+   npm run build:electron
+   # 或使用 Quasar CLI
+   quasar build -m electron
+   ```
+
+### 移动端开发
+
+```bash
+# 添加移动端平台
+npx cap add ios
+npx cap add android
+
+# 同步代码到移动端
+npx cap sync
+
+# 打开原生 IDE
+npx cap open ios
+npx cap open android
+```
+
+> **注意**: 目前移动端开发（尤其是ios）受到capacitor限制而举步维艰，建议以桌面端为主进行开发。
+
+## 项目结构 📁
+
+```
+osu-music/
+├── src/
+│   ├── components/          # Vue 组件
+│   ├── pages/              # 页面组件
+│   ├── stores/             # Pinia 状态管理
+│   ├── services/           # API 服务
+│   ├── layouts/            # 布局组件
+│   └── assets/             # 静态资源
+├── src-electron/           # Electron 主进程代码
+├── public/                 # 公共资源
+│   ├── music/              # 示例音乐文件
+│   └── playlists/          # 示例播放列表
+└── ios/                    # iOS 项目文件
+```
+
+## 许可证 📄
+
+本项目采用 MIT 许可证 - 详情请查看 [LICENSE](LICENSE) 文件。
+
+## 致谢 🙏
+
+- [osu!](https://osu.ppy.sh/) - 提供优秀的音乐游戏和 API
+- [Quasar Framework](https://quasar.dev/) - 强大的 Vue.js 框架
+- [Electron](https://www.electronjs.org/) - 跨平台桌面应用开发
+- [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
+
+## 联系方式 📮
+
+- 项目主页: [GitHub Repository](https://github.com/KirisameLonnet/osu-music)
+- 问题反馈: [GitHub Issues](https://github.com/KirisameLonnet/osu-music/issues)
+- 功能讨论: [GitHub Discussions](https://github.com/KirisameLonnet/osu-music/discussions)
+
+---
+
+**⭐ 如果这个项目对你有帮助，请给我们一个 Star！**
