@@ -1,15 +1,32 @@
 <template>
-  <q-drawer :model-value="isOpen" @update:model-value="emitUpdateIsOpen" side="left" class="app-drawer" :width="260"
-    show-if-above :breakpoint="768" :bordered="false">
+  <q-drawer
+    :model-value="isOpen"
+    @update:model-value="emitUpdateIsOpen"
+    side="left"
+    class="app-drawer"
+    :width="260"
+    show-if-above
+    :breakpoint="768"
+    :bordered="false"
+  >
     <div class="drawer-content-wrapper">
-      <q-scroll-area class="fit">
+      <q-scroll-area class="fit show-scrollbar drawer-scroll-area">
         <q-list padding>
           <!-- 主导航区 -->
           <q-item-label header class="drawer-header-label text-grey-6 q-pt-lg">
             Discover
           </q-item-label>
-          <q-item v-for="link in primaryNavLinks" :key="link.name" clickable v-ripple :to="link.to" exact
-            class="drawer-item" active-class="drawer-item-active" @click="handleItemClick">
+          <q-item
+            v-for="link in primaryNavLinks"
+            :key="link.name"
+            clickable
+            v-ripple
+            :to="link.to"
+            exact
+            class="drawer-item"
+            active-class="drawer-item-active"
+            @click="handleItemClick"
+          >
             <q-item-section avatar>
               <q-icon :name="link.icon" />
             </q-item-section>
@@ -20,8 +37,17 @@
           <q-separator spaced class="bg-grey-8 q-my-md" />
           <!-- 曲库和播放列表区 -->
           <q-item-label header class="drawer-header-label text-grey-6"> Your Music </q-item-label>
-          <q-item v-for="link in secondaryNavLinks" :key="link.name" clickable v-ripple :to="link.to" exact
-            class="drawer-item" active-class="drawer-item-active" @click="handleItemClick">
+          <q-item
+            v-for="link in secondaryNavLinks"
+            :key="link.name"
+            clickable
+            v-ripple
+            :to="link.to"
+            exact
+            class="drawer-item"
+            active-class="drawer-item-active"
+            @click="handleItemClick"
+          >
             <q-item-section avatar>
               <q-icon :name="link.icon" />
             </q-item-section>
@@ -31,8 +57,17 @@
           </q-item>
           <q-separator spaced class="bg-grey-8 q-my-md" />
           <!-- 其他链接和设置 -->
-          <q-item v-for="link in utilityLinks" :key="link.name" clickable v-ripple :to="link.to" exact
-            class="drawer-item" active-class="drawer-item-active" @click="handleItemClick">
+          <q-item
+            v-for="link in utilityLinks"
+            :key="link.name"
+            clickable
+            v-ripple
+            :to="link.to"
+            exact
+            class="drawer-item"
+            active-class="drawer-item-active"
+            @click="handleItemClick"
+          >
             <q-item-section avatar>
               <q-icon :name="link.icon" />
             </q-item-section>

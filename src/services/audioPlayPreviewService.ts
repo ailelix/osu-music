@@ -23,7 +23,7 @@ class AudioService {
     this.audio = new Audio();
     this.audio.crossOrigin = 'anonymous';
     this.audio.preload = 'none';
-    this.audio.volume = 0.3; // 将默认音量设置为 50%
+    this.audio.volume = 0.5; // 调整默认音量为50%
 
     this.audio.addEventListener('loadstart', () => {
       this.isLoading.value = true;

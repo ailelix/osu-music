@@ -6,6 +6,100 @@ import type { Schema } from 'electron-store';
 import Store from 'electron-store'; // 导入 electron-store 和 Schema
 import axios from 'axios';
 import type { AxiosError } from 'axios'; // 新增: 用于主进程 token 交换
+import fs from 'fs/promises'; // 新增: 用于文件系统操作
+import * as mm from 'music-metadata'; // 新增: 音频元数据读取
+
+/**
+ * 跨平台路径工具函数
+ * 获取统一的音乐存储目录路径
+ */
+function getMusicStoragePath(): string {
+  try {
+    // 使用 Electron 的 app.getPath('music') 获取系统音乐目录
+    // 这个方法在所有平台上都会返回正确的音乐目录：
+    // - Windows: %USERPROFILE%\Music
+    // - macOS: ~/Music
+    // - Linux: ~/Music (或 XDG_MUSIC_DIR)
+    const systemMusicPath = app.getPath('music');
+    return path.join(systemMusicPath, 'osu-music');
+  } catch (error) {
+    console.error('[Path Utils] Failed to get system music path, using fallback:', error);
+    // 降级处理：使用用户主目录下的 Music/osu-music
+    const homeDir = os.homedir();
+    return path.join(homeDir, 'Music', 'osu-music');
+  }
+}
+
+/**
+ * 获取播放列表存储目录路径
+ */
+function getPlaylistStoragePath(): string {
+  return path.join(getMusicStoragePath(), 'playlists');
+}
+
+/**
+ * 确保目录存在（跨平台安全创建）
+ */
+async function ensureDirectoryExists(dirPath: string): Promise<void> {
+  try {
+    await fs.mkdir(dirPath, { recursive: true });
+    console.log(`[Path Utils] Directory ensured: ${dirPath}`);
+  } catch (error) {
+    console.error(`[Path Utils] Failed to create directory ${dirPath}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * 清理文件名，移除不安全字符（跨平台兼容）
+ */
+function sanitizeFilename(filename: string): string {
+  return (
+    filename
+      // 移除 Windows 非法字符: < > : " | ? * \
+      .replace(/[<>:"/\\|?*]/g, '_')
+      // 移除控制字符 (0x00-0x1F)
+      .replace(/[\x00-\x1F]/g, '_') // eslint-disable-line no-control-regex
+      // 移除开头和结尾的空格和点
+      .replace(/^[\s.]+|[\s.]+$/g, '')
+      // 限制长度（Windows 文件名限制）
+      .substring(0, 255) ||
+    // 确保不为空
+    'untitled'
+  );
+}
+
+/**
+ * 验证路径安全性，防止路径遍历攻击
+ */
+function validatePath(userPath: string, baseDir: string): boolean {
+  try {
+    const resolvedPath = path.resolve(baseDir, userPath);
+    const resolvedBase = path.resolve(baseDir);
+    return resolvedPath.startsWith(resolvedBase);
+  } catch (error) {
+    console.error('[Path Utils] Path validation error:', error);
+    return false;
+  }
+}
+
+/**
+ * 验证音频文件类型
+ */
+function isValidAudioFile(filename: string): boolean {
+  const allowedExtensions = ['.mp3', '.wav', '.ogg', '.flac', '.m4a'];
+  const extension = path.extname(filename).toLowerCase();
+  return allowedExtensions.includes(extension);
+}
+
+/**
+ * 验证beatmap下载的音频文件类型（仅允许MP3）
+ */
+function isValidBeatmapAudioFile(filename: string): boolean {
+  const allowedExtensions = ['.mp3']; // 只允许MP3，排除WAV音效文件
+  const extension = path.extname(filename).toLowerCase();
+  return allowedExtensions.includes(extension);
+}
 
 // 定义设置项的结构 (与渲染进程的 AppSettings 一致)
 interface AppSettings {
@@ -131,6 +225,7 @@ async function createWindow() {
     titleBarStyle: platform === 'darwin' ? 'hiddenInset' : 'hidden', // macOS 特殊处理
     webPreferences: {
       contextIsolation: true,
+      webSecurity: false, // 禁用 web 安全限制，允许加载本地文件
       // More info: https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/electron-preload-script
       preload: path.resolve(
         currentDir,
@@ -356,6 +451,498 @@ void app.whenReady().then(() => {
       }
       console.error('[Main Process] Error Config:', axiosError.config);
       throw new Error(`Failed to fetch audio data from main: ${axiosError.message}`);
+    }
+  });
+
+  // 新增: 处理从 beatmap 下载的音频文件保存请求
+  ipcMain.handle('save-audio-file', async (event, { fileName, data }) => {
+    if (!fileName || !data) {
+      return { success: false, error: 'fileName and data are required' };
+    }
+
+    try {
+      // 1. 清理和验证文件名
+      const sanitizedFileName = sanitizeFilename(fileName);
+      if (!isValidBeatmapAudioFile(sanitizedFileName)) {
+        return {
+          success: false,
+          error: 'Invalid audio file type (only MP3 files are supported for beatmap downloads)',
+        };
+      }
+
+      // 2. 确保音乐文件夹存在
+      const musicFolderPath = getMusicStoragePath();
+      await ensureDirectoryExists(musicFolderPath);
+
+      // 3. 验证路径安全性
+      if (!validatePath(sanitizedFileName, musicFolderPath)) {
+        return { success: false, error: 'Invalid file path' };
+      }
+
+      // 4. 生成完整的文件保存路径
+      const filePath = path.join(musicFolderPath, sanitizedFileName);
+
+      // 5. 检查文件大小限制 (100MB)
+      const MAX_FILE_SIZE = 100 * 1024 * 1024;
+      if (data.length > MAX_FILE_SIZE) {
+        return { success: false, error: 'File too large (max 100MB)' };
+      }
+
+      // 6. 将数组转换为 Buffer 并保存文件
+      const buffer = Buffer.from(data);
+      await fs.writeFile(filePath, buffer, { mode: 0o644 });
+
+      console.log(`[Main Process] Audio file saved successfully: ${filePath}`);
+      return { success: true, filePath };
+    } catch (error) {
+      console.error('[Main Process] Error saving audio file:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 新增: 处理 beatmap .osz 文件下载请求
+  ipcMain.handle('download-beatmap-osz', async (event, { beatmapsetId, accessToken }) => {
+    if (!beatmapsetId || !accessToken) {
+      return { success: false, error: 'beatmapsetId and accessToken are required' };
+    }
+
+    try {
+      const oszUrl = `https://osu.ppy.sh/beatmapsets/${beatmapsetId}/download`;
+
+      console.log(`[Main Process] Downloading .osz file from: ${oszUrl}`);
+
+      const response = await axios.get(oszUrl, {
+        responseType: 'arraybuffer',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'User-Agent': 'osu-music-fusion/1.0.0',
+        },
+        timeout: 60000, // 60秒超时
+        maxRedirects: 5, // 允许重定向
+      });
+
+      console.log(`[Main Process] .osz download response status: ${response.status}`);
+      console.log(`[Main Process] .osz download response headers:`, response.headers);
+      console.log(
+        `[Main Process] .osz download completed, size: ${response.data.byteLength} bytes`,
+      );
+
+      // 验证响应是否为ZIP文件
+      const firstBytes = new Uint8Array(response.data.slice(0, 4));
+      const zipSignature = [0x50, 0x4b, 0x03, 0x04]; // "PK\x03\x04"
+      const isValidZip = zipSignature.every((byte, index) => firstBytes[index] === byte);
+
+      if (!isValidZip) {
+        console.error(
+          `[Main Process] Downloaded file is not a valid ZIP. First 4 bytes: [${Array.from(
+            firstBytes,
+          )
+            .map((b) => `0x${b.toString(16).padStart(2, '0')}`)
+            .join(', ')}]`,
+        );
+
+        // 尝试解析响应内容以获取更多信息
+        const textDecoder = new TextDecoder('utf-8', { fatal: false });
+        const textContent = textDecoder.decode(
+          response.data.slice(0, Math.min(1024, response.data.byteLength)),
+        );
+        console.error(`[Main Process] Response content preview: ${textContent}`);
+
+        return {
+          success: false,
+          error: `Server returned invalid data (not a ZIP file). Content-Type: ${response.headers['content-type'] || 'unknown'}. First 1024 chars: ${textContent.substring(0, 500)}...`,
+        };
+      }
+
+      console.log(`[Main Process] ZIP file validation passed`);
+
+      // 返回下载的数据作为字节数组
+      return {
+        success: true,
+        data: Array.from(new Uint8Array(response.data)),
+      };
+    } catch (error) {
+      console.error('[Main Process] Error downloading .osz file:', error);
+
+      let errorMessage = 'Unknown error occurred';
+      if (axios.isAxiosError(error)) {
+        errorMessage = `HTTP ${error.response?.status || 'unknown'}: ${error.response?.statusText || error.message}`;
+        if (error.response?.data) {
+          // 尝试解析错误响应
+          try {
+            const textDecoder = new TextDecoder('utf-8', { fatal: false });
+            const errorContent = textDecoder.decode(
+              error.response.data.slice(0, Math.min(512, error.response.data.byteLength)),
+            );
+            errorMessage += `. Server response: ${errorContent}`;
+          } catch (decodeError) {
+            console.error('[Main Process] Failed to decode error response:', decodeError);
+          }
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 新增: 处理从公共镜像站下载 beatmap .osz 文件的请求
+  ipcMain.handle('download-beatmap-osz-public', async (event, { url, beatmapsetId }) => {
+    if (!url || !beatmapsetId) {
+      return { success: false, error: 'url and beatmapsetId are required' };
+    }
+
+    try {
+      console.log(`[Main Process] Downloading .osz file from public mirror: ${url}`);
+
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer',
+        headers: {
+          'User-Agent': 'osu-music-fusion/1.0.0',
+          Accept: 'application/octet-stream, application/zip, */*',
+        },
+        timeout: 60000, // 60秒超时
+        maxRedirects: 5, // 允许重定向
+        validateStatus: (status) => status < 500, // 接受所有非5xx状态码
+      });
+
+      console.log(`[Main Process] Public mirror download response status: ${response.status}`);
+      console.log(`[Main Process] Public mirror download response headers:`, response.headers);
+
+      if (response.status !== 200) {
+        return {
+          success: false,
+          error: `HTTP ${response.status}: ${response.statusText}. Server may not have this beatmap available.`,
+        };
+      }
+
+      if (!response.data || response.data.byteLength === 0) {
+        return {
+          success: false,
+          error: 'Downloaded file is empty',
+        };
+      }
+
+      console.log(
+        `[Main Process] Public mirror download completed, size: ${response.data.byteLength} bytes`,
+      );
+
+      // 验证响应是否为ZIP文件（.osz 本质上是ZIP文件）
+      const firstBytes = new Uint8Array(response.data.slice(0, 4));
+      const zipSignature = [0x50, 0x4b, 0x03, 0x04]; // "PK\x03\x04"
+      const altZipSignature = [0x50, 0x4b, 0x05, 0x06]; // "PK\x05\x06" (空ZIP)
+      const isValidZip =
+        zipSignature.every((byte, index) => firstBytes[index] === byte) ||
+        altZipSignature.every((byte, index) => firstBytes[index] === byte);
+
+      if (!isValidZip) {
+        console.error(
+          `[Main Process] Downloaded file from ${url} is not a valid ZIP. First 4 bytes: [${Array.from(
+            firstBytes,
+          )
+            .map((b) => `0x${b.toString(16).padStart(2, '0')}`)
+            .join(', ')}]`,
+        );
+
+        // 尝试解析响应内容以获取更多信息
+        const textDecoder = new TextDecoder('utf-8', { fatal: false });
+        const textContent = textDecoder.decode(
+          response.data.slice(0, Math.min(1024, response.data.byteLength)),
+        );
+        console.error(`[Main Process] Response content preview: ${textContent}`);
+
+        return {
+          success: false,
+          error: `Mirror returned invalid data (not a ZIP file). This may be a rate limit or the beatmap may not be available on this mirror. Content preview: ${textContent.substring(0, 200)}...`,
+        };
+      }
+
+      console.log(`[Main Process] ZIP file validation passed for public mirror download`);
+
+      // 返回下载的数据作为ArrayBuffer
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error(`[Main Process] Error downloading .osz file from public mirror ${url}:`, error);
+
+      let errorMessage = 'Unknown error occurred';
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}`;
+          if (error.response.status === 404) {
+            errorMessage += '. This beatmap may not be available on this mirror.';
+          } else if (error.response.status === 429) {
+            errorMessage += '. Rate limit exceeded on this mirror.';
+          } else if (error.response.status >= 500) {
+            errorMessage += '. Mirror server error.';
+          }
+
+          // 尝试解析错误响应内容
+          if (error.response.data) {
+            try {
+              const textDecoder = new TextDecoder('utf-8', { fatal: false });
+              const errorContent = textDecoder.decode(
+                error.response.data.slice(0, Math.min(512, error.response.data.byteLength)),
+              );
+              if (errorContent.trim()) {
+                errorMessage += ` Server response: ${errorContent.substring(0, 200)}`;
+              }
+            } catch (decodeError) {
+              console.error('[Main Process] Failed to decode mirror error response:', decodeError);
+            }
+          }
+        } else if (error.request) {
+          errorMessage = `Network error: ${error.message}. Mirror may be unreachable.`;
+        } else {
+          errorMessage = `Request setup error: ${error.message}`;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 新增: 为音频文件创建 blob URL
+  ipcMain.handle('get-audio-blob-url', async (event, filePath: string) => {
+    try {
+      // 验证文件路径安全性
+      const musicFolderPath = getMusicStoragePath();
+      if (!validatePath(filePath, musicFolderPath)) {
+        throw new Error('Invalid file path');
+      }
+
+      // 验证文件类型
+      if (!isValidAudioFile(path.basename(filePath))) {
+        throw new Error('Invalid audio file type');
+      }
+
+      // 读取文件内容
+      const audioBuffer = await fs.readFile(filePath);
+
+      // 转换为 Base64
+      const base64Audio = audioBuffer.toString('base64');
+
+      // 获取 MIME 类型
+      const ext = path.extname(filePath).toLowerCase();
+      let mimeType = 'audio/mpeg'; // 默认为 MP3
+
+      switch (ext) {
+        case '.mp3':
+          mimeType = 'audio/mpeg';
+          break;
+        case '.wav':
+          mimeType = 'audio/wav';
+          break;
+        case '.ogg':
+          mimeType = 'audio/ogg';
+          break;
+        case '.flac':
+          mimeType = 'audio/flac';
+          break;
+        case '.m4a':
+          mimeType = 'audio/mp4';
+          break;
+      }
+
+      // 返回 Data URL
+      const dataUrl = `data:${mimeType};base64,${base64Audio}`;
+
+      console.log(`[Main Process] Created audio blob URL for: ${filePath}`);
+      return { success: true, dataUrl };
+    } catch (error) {
+      console.error('[Main Process] Error creating audio blob URL:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 新增: 扫描音乐文件夹获取音乐文件列表
+  ipcMain.handle('scan-music-folder', async () => {
+    try {
+      const musicFolderPath = getMusicStoragePath();
+      await ensureDirectoryExists(musicFolderPath);
+      async function scanAudioFilesRecursive(dir: string): Promise<string[]> {
+        let results: string[] = [];
+        const list = await fs.readdir(dir, { withFileTypes: true });
+        for (const file of list) {
+          const filePath = path.join(dir, file.name);
+          if (file.isDirectory()) {
+            results = results.concat(await scanAudioFilesRecursive(filePath));
+          } else if (isValidAudioFile(file.name)) {
+            results.push(filePath);
+          }
+        }
+        return results;
+      }
+      const audioFiles = await scanAudioFilesRecursive(musicFolderPath);
+      // 定义更具体的结构体类型
+      interface AudioFileInfo {
+        id: string;
+        title: string;
+        artist: string;
+        album: string;
+        duration: number | undefined;
+        filePath: string;
+        fileName: string;
+        coverUrl: string | undefined;
+        addedDate: string;
+      }
+      const files: AudioFileInfo[] = [];
+      for (const filePath of audioFiles) {
+        try {
+          const fileName = path.basename(filePath);
+          let id = fileName.split('-')[0] || fileName;
+          if (!/^\d+$/.test(id)) id = fileName;
+          // 读取文件元数据
+          try {
+            const metadata = await mm.parseFile(filePath, { duration: true });
+            const fileStat = await fs.stat(filePath);
+            files.push({
+              id,
+              title: metadata.common.title || fileName.replace(/\.(mp3|wav|ogg|flac|m4a)$/i, ''),
+              artist: metadata.common.artist || '',
+              album: metadata.common.album || '',
+              duration: metadata.format.duration ? Math.round(metadata.format.duration) : undefined,
+              filePath,
+              fileName,
+              coverUrl: undefined,
+              addedDate: fileStat.birthtime.toISOString(),
+            });
+          } catch (err) {
+            console.warn('[Main Process] Failed to read metadata for', filePath, err);
+          }
+        } catch (err) {
+          console.warn('[Main Process] Failed to read metadata for', filePath, err);
+        }
+      }
+      return { success: true, files };
+    } catch (error) {
+      console.error('[Main Process] scan-music-folder error:', error);
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // 新增: 加载歌单文件
+  ipcMain.handle('load-playlist-files', async () => {
+    try {
+      const playlistsFolderPath = getPlaylistStoragePath();
+
+      // 确保歌单文件夹存在
+      await ensureDirectoryExists(playlistsFolderPath);
+
+      // 扫描歌单文件
+      const files = await fs.readdir(playlistsFolderPath);
+      const playlistFiles = files.filter((file) => file.endsWith('.json'));
+
+      const playlists: unknown[] = [];
+
+      for (const file of playlistFiles) {
+        try {
+          const filePath = path.join(playlistsFolderPath, file);
+          const content = await fs.readFile(filePath, 'utf-8');
+          const playlist = JSON.parse(content);
+          playlists.push(playlist);
+        } catch (fileError) {
+          console.warn(`[Main Process] Failed to load playlist file ${file}:`, fileError);
+        }
+      }
+
+      console.log(`[Main Process] Loaded ${playlists.length} playlist files`);
+      return { success: true, playlists };
+    } catch (error) {
+      console.error('[Main Process] Error loading playlist files:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 新增: 保存歌单文件
+  ipcMain.handle('save-playlist-file', async (event, filename, playlist) => {
+    if (!filename || !playlist || !playlist.id) {
+      return { success: false, error: 'Invalid playlist data or filename' };
+    }
+
+    try {
+      // 1. 清理和验证文件名
+      const sanitizedFilename = sanitizeFilename(filename);
+      if (!sanitizedFilename.endsWith('.json')) {
+        return { success: false, error: 'Invalid playlist file type' };
+      }
+
+      // 2. 确保歌单文件夹存在
+      const playlistsFolderPath = getPlaylistStoragePath();
+      await ensureDirectoryExists(playlistsFolderPath);
+
+      // 3. 验证路径安全性
+      if (!validatePath(sanitizedFilename, playlistsFolderPath)) {
+        return { success: false, error: 'Invalid file path' };
+      }
+
+      // 4. 生成文件路径
+      const filePath = path.join(playlistsFolderPath, sanitizedFilename);
+
+      // 5. 验证播放列表数据大小 (1MB 限制)
+      const playlistJson = JSON.stringify(playlist, null, 2);
+      const MAX_PLAYLIST_SIZE = 1024 * 1024; // 1MB
+      if (Buffer.byteLength(playlistJson, 'utf8') > MAX_PLAYLIST_SIZE) {
+        return { success: false, error: 'Playlist too large (max 1MB)' };
+      }
+
+      // 6. 保存歌单文件
+      await fs.writeFile(filePath, playlistJson, { encoding: 'utf-8', mode: 0o644 });
+
+      console.log(`[Main Process] Saved playlist file: ${filePath}`);
+      return { success: true, filePath };
+    } catch (error) {
+      console.error('[Main Process] Error saving playlist file:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 新增: 删除歌单文件
+  ipcMain.handle('delete-playlist-file', async (event, filename) => {
+    if (!filename) {
+      return { success: false, error: 'Filename is required' };
+    }
+
+    try {
+      const playlistsFolderPath = getPlaylistStoragePath();
+      const filePath = path.join(playlistsFolderPath, filename);
+
+      // 检查文件是否存在
+      try {
+        await fs.access(filePath);
+      } catch {
+        return { success: false, error: 'Playlist file not found' };
+      }
+
+      // 删除文件
+      await fs.unlink(filePath);
+
+      console.log(`[Main Process] Deleted playlist file: ${filePath}`);
+      return { success: true };
+    } catch (error) {
+      console.error('[Main Process] Error deleting playlist file:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 注册 get-audio-metadata handler，返回音频文件时长（秒）
+  ipcMain.handle('get-audio-metadata', async (event, filePath) => {
+    try {
+      const metadata = await mm.parseFile(filePath);
+      return Math.floor(metadata.format.duration || 0);
+    } catch (e) {
+      console.error('[get-audio-metadata] Failed to parse', filePath, e);
+      return 0;
     }
   });
 });

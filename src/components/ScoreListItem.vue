@@ -14,6 +14,14 @@
           :src="beatmapCoverUrl"
           :alt="`${score.beatmapset.title} cover`"
           @error="onImageError"
+          style="
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            background: #222;
+          "
+          draggable="false"
         />
       </q-avatar>
     </q-item-section>
@@ -87,20 +95,65 @@
       <q-item-label caption class="played-at-time">{{
         formatPlayedAt(score.created_at)
       }}</q-item-label>
-      <q-btn
-        flat
-        dense
-        round
-        icon="download"
-        color="grey-7"
-        class="q-mt-sm download-button"
-        @click.stop="handleDownloadClick"
-        aria-label="Download beatmap"
-      >
-        <q-tooltip anchor="top middle" self="bottom middle" class="bg-dark text-caption">
-          Download Beatmap (WIP)
-        </q-tooltip>
-      </q-btn>
+
+      <!-- 下载按钮和进度 -->
+      <div class="download-section q-mt-sm">
+        <!-- 下载进度 -->
+        <div v-if="downloadProgress" class="download-progress q-mb-xs">
+          <q-linear-progress
+            :value="downloadProgress.progress / 100"
+            color="primary"
+            size="3px"
+            class="q-mb-xs"
+          />
+          <q-item-label caption class="text-center text-caption">
+            {{
+              downloadProgress.status === 'downloading'
+                ? 'Downloading...'
+                : downloadProgress.status === 'extracting'
+                  ? 'Extracting...'
+                  : downloadProgress.status === 'completed'
+                    ? 'Completed!'
+                    : 'Error'
+            }}
+          </q-item-label>
+        </div>
+
+        <!-- 下载按钮 -->
+        <q-btn
+          flat
+          dense
+          round
+          :icon="downloadProgress?.status === 'completed' ? 'check_circle' : 'download'"
+          :color="
+            downloadProgress?.status === 'completed'
+              ? 'positive'
+              : downloadProgress?.status === 'error'
+                ? 'negative'
+                : 'grey-7'
+          "
+          :loading="
+            downloadProgress?.status === 'downloading' || downloadProgress?.status === 'extracting'
+          "
+          @click.stop="handleDownloadClick"
+          :disable="downloadProgress?.status === 'completed'"
+          aria-label="Download beatmap"
+        >
+          <q-tooltip anchor="top middle" self="bottom middle" class="bg-dark text-caption">
+            {{
+              downloadProgress?.status === 'completed'
+                ? 'Downloaded'
+                : downloadProgress?.status === 'downloading'
+                  ? 'Downloading...'
+                  : downloadProgress?.status === 'extracting'
+                    ? 'Extracting...'
+                    : downloadProgress?.status === 'error'
+                      ? 'Download failed'
+                      : 'Download MP3 music files (sound effects excluded)'
+            }}
+          </q-tooltip>
+        </q-btn>
+      </div>
     </q-item-section>
   </q-item>
 </template>
@@ -112,6 +165,7 @@ import { type Score } from 'src/stores/playHistory'; // 确认路径
 import { formatDistanceToNowStrict, parseISO } from 'date-fns'; // npm install date-fns
 import { useQuasar } from 'quasar';
 import type { CSSProperties } from 'vue';
+import { useBeatmapDownloadService } from 'src/services/beatmapDownloadService';
 
 const props = defineProps({
   score: {
@@ -126,6 +180,13 @@ const props = defineProps({
 });
 
 const $q = useQuasar();
+const downloadService = useBeatmapDownloadService();
+
+// 计算下载进度
+const downloadProgress = computed(() => {
+  const beatmapsetId = props.score.beatmapset?.id;
+  return beatmapsetId ? downloadService.getDownloadProgress(beatmapsetId) : undefined;
+});
 
 const defaultCover = 'https://assets.ppy.sh/beatmaps/covers/default.jpg'; // 备用封面图
 
@@ -161,7 +222,6 @@ const rankColor = (rank: string) => {
   return colors[rank.toUpperCase()] || 'grey-7';
 };
 
-
 const modColor = (mod: string) => {
   // 示例：可以为特定 mod 定义颜色
   const modColors: Record<string, string> = {
@@ -177,7 +237,6 @@ const modColor = (mod: string) => {
   };
   return modColors[mod.toUpperCase()] || 'blue-grey-8';
 };
-
 
 const formatPlayedAt = (dateTimeString: string) => {
   try {
@@ -208,23 +267,68 @@ const onItemContentClick = () => {
   }
 };
 
-const handleDownloadClick = () => {
+const handleDownloadClick = async () => {
   const beatmapsetId = props.score.beatmapset?.id;
   const beatmapTitle = props.score.beatmapset?.title_unicode || props.score.beatmapset?.title;
 
+  if (!beatmapsetId || !beatmapTitle) {
+    $q.notify({
+      message: 'Missing beatmap information for download',
+      icon: 'error',
+      color: 'negative',
+      position: 'top',
+    });
+    return;
+  }
+
+  // 检查是否已在下载中
+  if (downloadService.isDownloading(beatmapsetId)) {
+    $q.notify({
+      message: `"${beatmapTitle}" is already downloading`,
+      icon: 'info',
+      color: 'info',
+      position: 'top',
+    });
+    return;
+  }
+
   console.log(
-    `[ScoreListItem] Download (WIP) for beatmapset ID: ${beatmapsetId} - ${beatmapTitle}`,
+    `[ScoreListItem] Starting download for beatmapset ID: ${beatmapsetId} - ${beatmapTitle}`,
   );
+
+  // 显示开始下载通知
   $q.notify({
-    message: `Download for "${beatmapTitle || 'this beatmap'}" is not yet implemented.`,
-    icon: 'o_construction',
+    message: `Starting download: ${beatmapTitle}`,
+    icon: 'download',
     color: 'info',
+    timeout: 2000,
     position: 'top',
-    textColor: 'white',
-    classes: 'glossy', // 示例：添加一点 Quasar 的样式
   });
-  // 未来在这里实现下载逻辑 TODO
-  // e.g., window.electron.ipcRenderer.send('download-beatmapset', beatmapsetId);
+
+  try {
+    await downloadService.downloadBeatmap(beatmapsetId, beatmapTitle);
+
+    // 成功通知
+    $q.notify({
+      message: `Successfully downloaded: ${beatmapTitle}`,
+      icon: 'check_circle',
+      color: 'positive',
+      timeout: 3000,
+      position: 'top',
+    });
+  } catch (error) {
+    console.error('[ScoreListItem] Download failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Download failed';
+
+    // 错误通知
+    $q.notify({
+      message: `Download failed: ${errorMessage}`,
+      icon: 'error',
+      color: 'negative',
+      timeout: 5000,
+      position: 'top',
+    });
+  }
 };
 
 // --- 修改：计算星级芯片的样式 (基于 2021 年网站更新后的细化颜色分级) ---
@@ -291,10 +395,6 @@ const starChipStyle = (difficultyRating: number): CSSProperties => {
     background-color: color.adjust($dark-page, $lightness: 8%);
   }
 
-  // 根据通过/失败状态添加样式
-  &.score-passed {
-    // border-left: 3px solid $positive; // 左侧用颜色标记通过
-  }
   &.score-failed {
     border-left: 3px solid $negative; // 左侧用颜色标记失败
     opacity: 0.75; // 失败的成绩稍微降低透明度

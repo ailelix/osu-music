@@ -4,11 +4,22 @@
       <!-- 封面图片 -->
       <div class="cover-section">
         <div class="cover-image-container">
-          <img :src="track.coverUrl || '/icons/favicon-96x96.png'" :alt="track.title" class="cover-image"
-            @error="onImageError" />
+          <img
+            :src="smartCoverUrl"
+            :alt="track.title"
+            class="cover-image"
+            @error="onImageError"
+            draggable="false"
+          />
           <div class="play-overlay">
-            <q-btn round color="primary" icon="play_arrow" size="md" @click.stop="$emit('play', track)"
-              class="play-button" />
+            <q-btn
+              round
+              color="primary"
+              icon="play_arrow"
+              size="md"
+              @click.stop="$emit('play', track)"
+              class="play-button"
+            />
           </div>
         </div>
       </div>
@@ -22,9 +33,6 @@
           <p class="track-artist text-caption text-grey-6 q-mb-xs">
             {{ track.artist || 'Unknown Artist' }}
           </p>
-          <p class="track-album text-caption text-grey-7">
-            {{ track.album || 'Unknown Album' }}
-          </p>
         </div>
 
         <!-- 底部信息 -->
@@ -33,7 +41,14 @@
             {{ formatDuration(track.duration) }}
           </div>
           <div class="actions">
-            <q-btn flat round size="sm" icon="more_vert" color="grey-6" @click.stop="$emit('menu', track)">
+            <q-btn
+              flat
+              round
+              size="sm"
+              icon="more_vert"
+              color="grey-6"
+              @click.stop="$emit('menu', track)"
+            >
               <q-menu>
                 <q-list dense style="min-width: 150px">
                   <q-item clickable @click="$emit('play', track)">
@@ -65,10 +80,11 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { type MusicTrack } from 'src/stores/musicStore';
 
 // Props
-defineProps<{
+const props = defineProps<{
   track: MusicTrack;
 }>();
 
@@ -81,16 +97,59 @@ defineEmits<{
   showInfo: [track: MusicTrack];
 }>();
 
-// 处理图片加载错误
+// 使用 osu! ppy 的默认封面
+const defaultCover = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg.png';
+
+// 智能封面 URL 生成
+const smartCoverUrl = computed(() => {
+  // 如果有 coverUrl，直接使用
+  if (props.track.coverUrl) {
+    return props.track.coverUrl;
+  }
+
+  // 尝试从 beatmapset ID 生成封面 URL
+  if (props.track.id && props.track.id !== 'unknown') {
+    return `https://assets.ppy.sh/beatmaps/${props.track.id}/covers/card.jpg`;
+  }
+
+  // 使用默认封面
+  return defaultCover;
+});
+
+const coverSrc = ref(smartCoverUrl.value);
+
 const onImageError = (event: Event) => {
   const img = event.target as HTMLImageElement;
-  img.src = '/icons/favicon-96x96.png';
+  const currentSrc = img.src;
+
+  // 如果当前不是默认封面且还没尝试过其他尺寸
+  if (currentSrc !== defaultCover && props.track.id && props.track.id !== 'unknown') {
+    // 尝试其他封面尺寸
+    if (currentSrc.includes('/card.jpg')) {
+      // 尝试 list 尺寸
+      const listUrl = `https://assets.ppy.sh/beatmaps/${props.track.id}/covers/list.jpg`;
+      img.src = listUrl;
+      coverSrc.value = listUrl;
+      return;
+    } else if (currentSrc.includes('/list.jpg')) {
+      // 尝试 cover 尺寸
+      const coverUrl = `https://assets.ppy.sh/beatmaps/${props.track.id}/covers/cover.jpg`;
+      img.src = coverUrl;
+      coverSrc.value = coverUrl;
+      return;
+    }
+  }
+
+  // 最后使用默认封面
+  if (currentSrc !== defaultCover) {
+    img.src = defaultCover;
+    coverSrc.value = defaultCover;
+  }
 };
 
 // 格式化时长
 const formatDuration = (seconds?: number): string => {
   if (!seconds) return '--:--';
-
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -138,8 +197,11 @@ const formatDuration = (seconds?: number): string => {
       .cover-image {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: cover; // 保证图片完全填充且不留空白
+        object-position: center;
+        background: #222; // 防止图片加载失败时有空白
         transition: transform 0.3s ease;
+        user-select: none;
       }
 
       .play-overlay {
@@ -188,8 +250,7 @@ const formatDuration = (seconds?: number): string => {
         margin-bottom: 4px;
       }
 
-      .track-artist,
-      .track-album {
+      .track-artist {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

@@ -1,6 +1,43 @@
 // src/css/app.scss
 @use 'sass:color'; // 推荐添加，以明确依赖
 
+// 隐藏滚动条的全局样式
+* {
+  // 对于 Webkit 浏览器 (Chrome, Safari, Edge)
+  &::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+
+  // 对于 Firefox
+  scrollbar-width: none;
+  -ms-overflow-style: none; // 对于 IE/Edge
+}
+
+// 如果需要在特定元素上显示滚动条，可以使用这个类
+.show-scrollbar {
+  &::-webkit-scrollbar {
+    width: 8px !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border-radius: 4px !important;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.5) !important;
+    }
+  }
+
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1) !important;
+}
+
 // 尝试添加一些全局的科技感元素
 html,
 body {

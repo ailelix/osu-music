@@ -57,16 +57,26 @@
     <section class="actions-bar q-mb-lg">
       <div class="row items-center justify-between">
         <div class="col-auto">
-          <h2 class="text-h5 text-weight-medium q-mb-none text-white">
-            Music Library
-          </h2>
+          <h2 class="text-h5 text-weight-medium q-mb-none text-white">Music Library</h2>
         </div>
         <div class="col-auto">
           <div class="row q-gutter-md">
-            <q-btn color="primary" icon="refresh" label="Scan Music" outline @click="scanMusic"
-              :loading="musicStore.isLoading" />
-            <q-btn color="secondary" icon="shuffle" label="Shuffle All" unelevated @click="shuffleAll"
-              :disable="musicStore.totalTracks === 0" />
+            <q-btn
+              color="primary"
+              icon="refresh"
+              label="Scan Music"
+              outline
+              @click="scanMusic"
+              :loading="musicStore.isLoading"
+            />
+            <q-btn
+              color="secondary"
+              icon="shuffle"
+              label="Shuffle All"
+              unelevated
+              @click="shuffleAll"
+              :disable="musicStore.totalTracks === 0"
+            />
           </div>
         </div>
       </div>
@@ -76,20 +86,40 @@
     <section class="search-section q-mb-lg">
       <div class="row q-gutter-md items-end">
         <div class="col">
-          <q-input v-model="searchQuery" label="Search music..." outlined dark clearable
-            @update:model-value="onSearchChange">
+          <q-input
+            v-model="searchQuery"
+            label="Search music..."
+            outlined
+            dark
+            clearable
+            @update:model-value="onSearchChange"
+          >
             <template #prepend>
               <q-icon name="search" />
             </template>
           </q-input>
         </div>
         <div class="col-auto">
-          <q-select v-model="sortBy" :options="sortOptions" option-value="value" option-label="label" outlined dark
-            label="Sort by" style="min-width: 150px" @update:model-value="onSortChange" />
+          <q-select
+            v-model="sortBy"
+            :options="sortOptions"
+            option-value="value"
+            option-label="label"
+            outlined
+            dark
+            label="Sort by"
+            style="min-width: 150px"
+            @update:model-value="onSortChange"
+          />
         </div>
         <div class="col-auto">
-          <q-btn-toggle v-model="viewMode" :options="viewModeOptions" color="primary" outline
-            @update:model-value="onViewModeChange" />
+          <q-btn-toggle
+            v-model="viewMode"
+            :options="viewModeOptions"
+            color="primary"
+            outline
+            @update:model-value="onViewModeChange"
+          />
         </div>
       </div>
     </section>
@@ -105,7 +135,14 @@
       <q-icon name="error_outline" size="4rem" color="negative" />
       <h5 class="text-negative q-mt-md">Scan Failed</h5>
       <p class="text-grey-6">{{ musicStore.error }}</p>
-      <q-btn color="primary" label="Retry" icon="refresh" outline @click="scanMusic" class="q-mt-md" />
+      <q-btn
+        color="primary"
+        label="Retry"
+        icon="refresh"
+        outline
+        @click="scanMusic"
+        class="q-mt-md"
+      />
     </div>
 
     <!-- 音乐网格/列表 -->
@@ -113,9 +150,18 @@
       <!-- 网格视图 -->
       <div v-if="viewMode === 'grid'" class="music-grid">
         <div v-if="filteredTracks.length > 0" class="row q-col-gutter-lg">
-          <div v-for="track in filteredTracks" :key="track.id" class="col-12 col-sm-6 col-md-4 col-lg-3">
-            <MusicCard :track="track" @click="playTrack(track)" @play="playTrack(track)"
-              @add-to-playlist="addToPlaylist(track)" @show-info="showTrackInfo(track)" />
+          <div
+            v-for="track in filteredTracks"
+            :key="track.id"
+            class="col-12 col-sm-6 col-md-4 col-lg-3"
+          >
+            <MusicCard
+              :track="track"
+              @click="playTrack(track)"
+              @play="playTrack(track)"
+              @add-to-playlist="addToPlaylist(track)"
+              @show-info="showTrackInfo(track)"
+            />
           </div>
         </div>
 
@@ -126,36 +172,58 @@
             {{ searchQuery ? 'No matching tracks' : 'No music found' }}
           </h5>
           <p class="text-grey-6">
-            {{ searchQuery ? 'Try a different search term' : 'Scan your music folder to import tracks' }}
+            {{
+              searchQuery
+                ? 'Try a different search term'
+                : 'Scan your music folder to import tracks'
+            }}
           </p>
-          <q-btn v-if="!searchQuery" color="primary" label="Scan Music" icon="refresh" outline @click="scanMusic"
-            class="q-mt-md" />
+          <q-btn
+            v-if="!searchQuery"
+            color="primary"
+            label="Scan Music"
+            icon="refresh"
+            outline
+            @click="scanMusic"
+            class="q-mt-md"
+          />
         </div>
       </div>
 
       <!-- 列表视图 -->
-      <div v-else class="music-list">
-        <q-list v-if="filteredTracks.length > 0" dark separator>
-          <q-item v-for="track in filteredTracks" :key="track.id" clickable @click="playTrack(track)"
-            class="music-list-item">
+      <div v-else class="music-list show-scrollbar">
+        <q-list v-if="filteredTracks.length > 0" dark separator class="music-list-container">
+          <q-item
+            v-for="track in filteredTracks"
+            :key="track.id"
+            clickable
+            @click="playTrack(track)"
+            class="music-list-item"
+          >
             <q-item-section avatar>
               <q-avatar size="50px" rounded>
-                <img :src="track.coverUrl || '/icons/favicon-96x96.png'" :alt="track.title" />
+                <img :src="getSmartCoverUrl(track)" :alt="track.title" @error="onCoverImageError" />
               </q-avatar>
             </q-item-section>
 
             <q-item-section>
               <q-item-label class="text-white text-weight-medium">{{ track.title }}</q-item-label>
-              <q-item-label caption class="text-grey-6">{{ track.artist || 'Unknown Artist'
-              }}</q-item-label>
-              <q-item-label caption class="text-grey-7">{{ track.album || 'Unknown Album'
+              <q-item-label caption class="text-grey-6">{{
+                track.artist || 'Unknown Artist'
               }}</q-item-label>
             </q-item-section>
 
             <q-item-section side>
               <div class="row items-center q-gutter-sm">
                 <span class="text-caption text-grey-6">{{ formatDuration(track.duration) }}</span>
-                <q-btn flat round size="sm" icon="play_arrow" color="primary" @click.stop="playTrack(track)" />
+                <q-btn
+                  flat
+                  round
+                  size="sm"
+                  icon="play_arrow"
+                  color="primary"
+                  @click.stop="playTrack(track)"
+                />
                 <q-btn flat round size="sm" icon="more_vert" color="grey-6" @click.stop>
                   <q-menu>
                     <q-list dense style="min-width: 150px">
@@ -186,10 +254,21 @@
             {{ searchQuery ? 'No matching tracks' : 'No music found' }}
           </h5>
           <p class="text-grey-6">
-            {{ searchQuery ? 'Try a different search term' : 'Scan your music folder to import tracks' }}
+            {{
+              searchQuery
+                ? 'Try a different search term'
+                : 'Scan your music folder to import tracks'
+            }}
           </p>
-          <q-btn v-if="!searchQuery" color="primary" label="Scan Music" icon="refresh" outline @click="scanMusic"
-            class="q-mt-md" />
+          <q-btn
+            v-if="!searchQuery"
+            color="primary"
+            label="Scan Music"
+            icon="refresh"
+            outline
+            @click="scanMusic"
+            class="q-mt-md"
+          />
         </div>
       </div>
     </section>
@@ -204,19 +283,23 @@
         <q-card-section v-if="selectedTrack" class="q-pt-none">
           <div class="row">
             <div class="col-4">
-              <q-img :src="selectedTrack.coverUrl || '/icons/favicon-96x96.png'" :alt="selectedTrack.title"
-                style="width: 100px; height: 100px" class="rounded-borders" />
+              <q-img
+                :src="getSmartCoverUrl(selectedTrack)"
+                :alt="selectedTrack.title"
+                style="width: 100px; height: 100px"
+                class="rounded-borders"
+              />
             </div>
             <div class="col-8 q-pl-md">
               <div class="text-subtitle1 text-weight-medium">{{ selectedTrack.title }}</div>
-              <div class="text-body2 text-grey-6">{{ selectedTrack.artist || 'Unknown Artist' }}</div>
+              <div class="text-body2 text-grey-6">
+                {{ selectedTrack.artist || 'Unknown Artist' }}
+              </div>
               <div class="text-body2 text-grey-7">{{ selectedTrack.album || 'Unknown Album' }}</div>
               <div class="text-caption text-grey-6 q-mt-sm">
                 Duration: {{ formatDuration(selectedTrack.duration) }}
               </div>
-              <div class="text-caption text-grey-6">
-                File: {{ selectedTrack.fileName }}
-              </div>
+              <div class="text-caption text-grey-6">File: {{ selectedTrack.fileName }}</div>
             </div>
           </div>
         </q-card-section>
@@ -253,9 +336,7 @@ const favoriteCount = computed(() => {
 });
 
 const filteredTracks = computed(() => {
-  let tracks = searchQuery.value
-    ? musicStore.searchTracks(searchQuery.value)
-    : musicStore.tracks;
+  let tracks = searchQuery.value ? musicStore.searchTracks(searchQuery.value) : musicStore.tracks;
 
   // 排序
   switch (sortBy.value) {
@@ -272,7 +353,9 @@ const filteredTracks = computed(() => {
       tracks = [...tracks].sort((a, b) => (b.duration || 0) - (a.duration || 0));
       break;
     case 'recent':
-      tracks = [...tracks].sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime());
+      tracks = [...tracks].sort(
+        (a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime(),
+      );
       break;
   }
 
@@ -285,34 +368,50 @@ const sortOptions = [
   { label: 'Artist', value: 'artist' },
   { label: 'Album', value: 'album' },
   { label: 'Duration', value: 'duration' },
-  { label: 'Recently Added', value: 'recent' }
+  { label: 'Recently Added', value: 'recent' },
 ];
 
 const viewModeOptions = [
   { label: 'Grid', value: 'grid', icon: 'grid_view' },
-  { label: 'List', value: 'list', icon: 'view_list' }
+  { label: 'List', value: 'list', icon: 'view_list' },
 ];
 
 // 方法
-const scanMusic = () => {
-  musicStore.scanMusicFiles();
+const scanMusic = async () => {
+  try {
+    await musicStore.scanMusicFiles();
 
-  if (musicStore.error) {
+    if (musicStore.error) {
+      $q.notify({
+        message: 'Failed to scan music files',
+        icon: 'error',
+        color: 'negative',
+      });
+    } else {
+      $q.notify({
+        message: `Found ${musicStore.totalTracks} tracks`,
+        icon: 'music_note',
+        color: 'positive',
+      });
+    }
+  } catch {
     $q.notify({
-      message: 'Failed to scan music files',
+      message: 'An error occurred while scanning music files',
       icon: 'error',
       color: 'negative',
-    });
-  } else {
-    $q.notify({
-      message: `Found ${musicStore.totalTracks} tracks`,
-      icon: 'music_note',
-      color: 'positive',
     });
   }
 };
 
 const playTrack = (track: MusicTrack) => {
+  // 设置当前播放列表为所有过滤后的音轨
+  const playlist = {
+    id: 'all-music',
+    name: 'All Music',
+    tracks: filteredTracks.value,
+  };
+
+  musicStore.setCurrentPlaylist(playlist);
   musicStore.playTrack(track);
 
   $q.notify({
@@ -324,6 +423,9 @@ const playTrack = (track: MusicTrack) => {
 
 const shuffleAll = () => {
   if (musicStore.totalTracks === 0) return;
+
+  // 启用随机模式
+  musicStore.shuffleMode = 'on';
 
   const randomTrack = musicStore.tracks[Math.floor(Math.random() * musicStore.tracks.length)];
   if (randomTrack) {
@@ -367,6 +469,62 @@ const formatDuration = (seconds?: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
+// 智能封面 URL 生成 - 与 MusicCard.vue 保持一致
+const getSmartCoverUrl = (track: MusicTrack): string => {
+  // 如果有 coverUrl，直接使用
+  if (track.coverUrl) {
+    return track.coverUrl;
+  }
+
+  // 尝试从 beatmapset ID 生成封面 URL
+  if (track.id && track.id !== 'unknown') {
+    return `https://assets.ppy.sh/beatmaps/${track.id}/covers/card.jpg`;
+  }
+
+  // 使用 osu! 默认封面
+  return 'https://osu.ppy.sh/images/layout/beatmaps/default-bg.png';
+};
+
+// 封面图片错误处理
+const onCoverImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  const currentSrc = img.src;
+  const defaultCover = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg.png';
+
+  // 从 img 元素找到对应的 track
+  const trackTitle = img.alt;
+  const track = filteredTracks.value.find((t) => t.title === trackTitle);
+
+  if (!track) {
+    // 如果找不到对应 track，直接使用默认封面
+    if (currentSrc !== defaultCover) {
+      img.src = defaultCover;
+    }
+    return;
+  }
+
+  // 如果当前不是默认封面且还没尝试过其他尺寸
+  if (currentSrc !== defaultCover && track.id && track.id !== 'unknown') {
+    // 尝试其他封面尺寸
+    if (currentSrc.includes('/card.jpg')) {
+      // 尝试 list 尺寸
+      const listUrl = `https://assets.ppy.sh/beatmaps/${track.id}/covers/list.jpg`;
+      img.src = listUrl;
+      return;
+    } else if (currentSrc.includes('/list.jpg')) {
+      // 尝试 cover 尺寸
+      const coverUrl = `https://assets.ppy.sh/beatmaps/${track.id}/covers/cover.jpg`;
+      img.src = coverUrl;
+      return;
+    }
+  }
+
+  // 最后使用默认封面
+  if (currentSrc !== defaultCover) {
+    img.src = defaultCover;
+  }
+};
+
 // 事件处理
 const onSearchChange = () => {
   // 搜索逻辑已在计算属性中处理
@@ -383,7 +541,7 @@ const onViewModeChange = () => {
 // 组件挂载
 onMounted(() => {
   // 自动扫描音乐文件
-  scanMusic();
+  void scanMusic();
 });
 </script>
 
@@ -426,7 +584,6 @@ onMounted(() => {
   }
 
   .search-section {
-
     .q-input,
     .q-select {
       :deep(.q-field__control) {
@@ -453,6 +610,13 @@ onMounted(() => {
   }
 
   .music-list {
+    max-height: calc(100vh - 400px); // 限制高度，允许滚动
+    overflow-y: auto; // 添加垂直滚动
+
+    .music-list-container {
+      background: transparent;
+    }
+
     .music-list-item {
       background: rgba(255, 255, 255, 0.03);
       border-radius: 8px;

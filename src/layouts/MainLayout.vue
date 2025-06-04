@@ -46,6 +46,9 @@
           <component :is="Component" />
         </transition>
       </router-view>
+
+      <!-- Mini Player -->
+      <MiniPlayer />
     </q-page-container>
   </q-layout>
 </template>
@@ -57,6 +60,7 @@ import { useRouter } from 'vue-router';
 import { isNavigationFailure, NavigationFailureType } from 'vue-router';
 import AppLogo from 'components/AppLogo.vue';
 import AppDrawer from 'components/AppDrawer.vue';
+import MiniPlayer from 'components/MiniPlayer.vue';
 
 const leftDrawerOpen = ref(false);
 const router = useRouter();
@@ -153,17 +157,14 @@ $dark-page: #121218 !default;
 $header-text: #ffffff !default;
 $primary: #ff4081 !default; // 确保 $primary 已定义
 
-.main-layout {
-  // &.platform-mac .main-header .header-toolbar-content {
-  // 对于macOS，如果红绿灯是标准高度，toolbar可能需要整体加高一点点
-  // 或者通过 spacer 的高度来调整内容区的起始位置
-  // }
-}
+// 移除空的样式规则以避免 lint 错误
+// .main-layout 样式在需要时可以在这里添加
 
 .page-container-bg {
   background-color: $dark-page;
   color: $header-text; // 假设页面文本也是亮的
-  padding-bottom: env(safe-area-inset-bottom); // 适配 iOS 底部安全区
+  padding-bottom: calc(env(safe-area-inset-bottom) + 60px); // 适配 iOS 底部安全区 + MiniPlayer 高度
+  position: relative;
 }
 
 .main-header {

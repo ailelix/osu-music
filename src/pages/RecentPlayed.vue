@@ -176,10 +176,6 @@ watch(
 // 如果不可用，你可能需要 @import '../css/quasar.variables.scss'; (调整路径)
 // 或者直接使用硬编码的颜色值，但不推荐。
 
-.recent-plays-page {
-  // 页面背景色已由 MainLayout 的 .page-container-bg 设置为 $dark-page
-  // 文本颜色已由 class="text-page-text" 设置
-}
 
 .page-content-container {
   max-width: 900px; // 限制内容最大宽度，使其在大屏幕上更易读
@@ -191,12 +187,7 @@ watch(
   letter-spacing: 0.02em;
 }
 
-.mode-selector {
-  // Quasar 的 dark 属性会自动处理大部分深色主题下的样式
-  // 你可以通过 :deep() 或 slot 来自定义下拉菜单的样式
-  // .q-field__control { background-color: lighten($dark-page, 5%); }
-  // .q-field__native, .q-field__append .q-icon { color: $page-text; }
-}
+
 
 .loading-state,
 .error-state,
@@ -209,13 +200,8 @@ watch(
   min-height: 300px; // 给一些最小高度，使其在内容少时也能居中
   padding: var(--q-gutter-xl, 32px); // 使用 Quasar 的 gutter 变量
   // background-color: color.adjust($dark-page, $lightness: 3%); // 轻微不同的背景
-  // border-radius: $border-radius-root;
+  // border-radius: $border-radius-root; 
   // margin-top: var(--q-gutter-md, 16px);
-}
-
-.score-list {
-  // background-color: color.adjust($dark-page, $lightness: 5%); // 与 SettingsPage 的卡片背景类似
-  // border-color: rgba(255, 255, 255, 0.1) !important; // 确保边框颜色在深色背景下可见
 }
 
 // 如果你想让 q-select 的下拉菜单也应用深色主题中定义的颜色

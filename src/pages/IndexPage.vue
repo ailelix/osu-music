@@ -15,8 +15,14 @@
             {{ authStore.user.username }}
           </h2>
           <div class="user-badges q-mb-sm">
-            <q-chip v-if="authStore.user.is_supporter" color="pink" text-color="white" icon="favorite" size="sm"
-              class="supporter-badge">
+            <q-chip
+              v-if="authStore.user.is_supporter"
+              color="pink"
+              text-color="white"
+              icon="favorite"
+              size="sm"
+              class="supporter-badge"
+            >
               Supporter
             </q-chip>
           </div>
@@ -33,7 +39,10 @@
       </div>
 
       <h1 class="text-h2 text-weight-bold q-mb-md animated-greeting">{{ greeting }}</h1>
-      <p class="text-subtitle1 text-grey-7 q-mb-lg" style="max-width: 500px; margin-left: auto; margin-right: auto">
+      <p
+        class="text-subtitle1 text-grey-7 q-mb-lg"
+        style="max-width: 500px; margin-left: auto; margin-right: auto"
+      >
         Your Osu! music hub. Discover, listen, and enjoy.
       </p>
     </section>
@@ -50,7 +59,12 @@
             Community Hot Picks
           </h2>
           <div class="recommend-section">
-            <q-card flat bordered class="placeholder-card bg-grey-9" @click="handleCommunityPicksClick">
+            <q-card
+              flat
+              bordered
+              class="placeholder-card bg-grey-9"
+              @click="handleCommunityPicksClick"
+            >
               <q-card-section class="text-center">
                 <q-icon name="whatshot" size="lg" color="deep-orange" class="q-mb-sm" />
                 <div class="text-subtitle2">Top tracks from the Osu! community.</div>
@@ -82,7 +96,12 @@
             Explore by Tags
           </h2>
           <div class="recommend-section">
-            <q-card flat bordered class="placeholder-card bg-grey-9" @click="handleExploreByTagsClick">
+            <q-card
+              flat
+              bordered
+              class="placeholder-card bg-grey-9"
+              @click="handleExploreByTagsClick"
+            >
               <q-card-section class="text-center">
                 <q-icon name="tag" size="lg" color="green" class="q-mb-sm" />
                 <div class="text-subtitle2">Discover music through popular tags.</div>
@@ -97,15 +116,45 @@
     <!-- Call to Action -->
     <section class="q-py-xl text-center cta-buttons">
       <template v-if="authStore.isAuthenticated && authStore.user">
-        <q-btn :to="{ name: 'settings' }" label="Account & Settings" color="primary" rounded icon="manage_accounts"
-          class="q-px-lg q-mr-md" unelevated />
-        <q-btn label="Logout" color="negative" outline rounded icon="logout" @click="handleLogout" class="q-px-lg" />
+        <q-btn
+          :to="{ name: 'settings' }"
+          label="Account & Settings"
+          color="primary"
+          rounded
+          icon="manage_accounts"
+          class="q-px-lg q-mr-md"
+          unelevated
+        />
+        <q-btn
+          label="Logout"
+          color="negative"
+          outline
+          rounded
+          icon="logout"
+          @click="handleLogout"
+          class="q-px-lg"
+        />
       </template>
       <template v-else>
-        <q-btn :to="{ name: 'authSettings' }" label="Setup Osu! Authentication" color="secondary" size="lg" unelevated
-          rounded icon="account_circle" class="q-px-xl q-py-sm q-mr-md main-cta" />
-        <q-btn :to="{ name: 'settings' }" label="General Settings" color="grey-7" outline rounded icon="settings"
-          class="q-px-lg" />
+        <q-btn
+          :to="{ name: 'authSettings' }"
+          label="Setup Osu! Authentication"
+          color="secondary"
+          size="lg"
+          unelevated
+          rounded
+          icon="account_circle"
+          class="q-px-xl q-py-sm q-mr-md main-cta"
+        />
+        <q-btn
+          :to="{ name: 'settings' }"
+          label="General Settings"
+          color="grey-7"
+          outline
+          rounded
+          icon="settings"
+          class="q-px-lg"
+        />
       </template>
     </section>
   </q-page>
@@ -136,7 +185,7 @@ function handleLogout() {
     message: 'You have been logged out.',
     icon: 'info',
   });
-  router.push({ name: 'home' }).catch(() => { });
+  router.push({ name: 'home' }).catch(() => {});
 }
 
 function handleCommunityPicksClick() {
@@ -261,7 +310,7 @@ function handleExploreByTagsClick() {
   &:hover {
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
     transform: translateY(-5px) scale(1.02);
-    background-color: lighten($drawer-bg, 5%);
+    background-color: color-mix(in srgb, $drawer-bg 95%, white 5%);
   }
 }
 
@@ -290,8 +339,7 @@ function handleExploreByTagsClick() {
   }
 }
 
-@media (max-width: 600px),
-(orientation: portrait) {
+@media (max-width: 600px), (orientation: portrait) {
   .cta-buttons {
     flex-direction: column;
     align-items: stretch;
@@ -333,7 +381,6 @@ function handleExploreByTagsClick() {
 }
 
 @keyframes gradient-shift {
-
   0%,
   100% {
     background: linear-gradient(45deg, $primary, #ff6b9d);
@@ -351,7 +398,6 @@ function handleExploreByTagsClick() {
 }
 
 @keyframes sparkle {
-
   0%,
   100% {
     transform: scale(1);
@@ -365,7 +411,6 @@ function handleExploreByTagsClick() {
 }
 
 @keyframes float {
-
   0%,
   100% {
     transform: translateY(0px);

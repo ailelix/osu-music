@@ -51,19 +51,8 @@ yarn-error.log*
 # Music Library specific ignores
 # ================================
 
-# User music files (only keep demo files)
-/public/music/*
-!/public/music/1234567-Senbonzakura.mp3
-!/public/music/2345678-Through_the_Fire_and_Flames.mp3
-!/public/music/3456789-Blue_Zenith.mp3
-!/public/music/4567890-Necrofantasia.mp3
-!/public/music/5678901-FREEDOM_DiVE.mp3
-
-# User playlists (keep example playlists)
-/public/playlists/*
-!/public/playlists/my-favorites.json
-!/public/playlists/chill-anime.json
-!/public/playlists/electronic-vibes.json
+# Note: Music files and playlists are now stored in ~/Music/osu-music/
+# The application uses the user's Music directory instead of public folder
 
 # Local storage and cache
 /storage/

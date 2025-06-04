@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import type { IpcRendererEvent } from 'electron';
 // src/env.d.ts
 

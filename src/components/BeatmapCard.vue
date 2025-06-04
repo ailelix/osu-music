@@ -7,7 +7,9 @@
         :alt="`${beatmapset.title} cover`"
         class="card-image"
         fit="cover"
+        :ratio="1.8"
         @error="onImageError"
+        style="object-fit: cover; object-position: center; background: #222"
       >
         <template #loading>
           <div class="absolute-full flex flex-center">
@@ -102,14 +104,57 @@
         size="sm"
         @click.stop="openInBrowser"
       />
-      <q-btn
-        flat
-        color="secondary"
-        icon="download"
-        label="Download"
-        size="sm"
-        @click.stop="downloadBeatmap"
-      />
+
+      <!-- 下载按钮和进度 -->
+      <div class="download-section">
+        <!-- 下载进度条 -->
+        <div v-if="downloadProgress" class="download-progress-mini q-mb-xs">
+          <q-linear-progress
+            :value="downloadProgress.progress / 100"
+            color="secondary"
+            size="2px"
+          />
+        </div>
+
+        <q-btn
+          flat
+          :color="
+            downloadProgress?.status === 'completed'
+              ? 'positive'
+              : downloadProgress?.status === 'error'
+                ? 'negative'
+                : 'secondary'
+          "
+          :icon="
+            downloadProgress?.status === 'completed'
+              ? 'check_circle'
+              : downloadProgress?.status === 'error'
+                ? 'error'
+                : 'download'
+          "
+          :label="
+            downloadProgress?.status === 'completed'
+              ? 'Downloaded'
+              : downloadProgress?.status === 'downloading'
+                ? 'Downloading...'
+                : downloadProgress?.status === 'extracting'
+                  ? 'Extracting...'
+                  : downloadProgress?.status === 'error'
+                    ? 'Failed'
+                    : 'Download'
+          "
+          size="sm"
+          :loading="
+            downloadProgress?.status === 'downloading' || downloadProgress?.status === 'extracting'
+          "
+          :disable="downloadProgress?.status === 'completed'"
+          @click.stop="downloadBeatmap"
+        >
+          <q-tooltip v-if="!downloadProgress || downloadProgress.status === 'error'">
+            Download MP3 music files (sound effects excluded)
+          </q-tooltip>
+        </q-btn>
+      </div>
     </q-card-actions>
   </q-card>
 </template>
@@ -118,6 +163,7 @@
 import { computed, onUnmounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useAudioService } from '../services/audioPlayPreviewService';
+import { useBeatmapDownloadService } from 'src/services/beatmapDownloadService';
 
 interface Beatmap {
   id: number;
@@ -172,27 +218,36 @@ const props = defineProps<Props>();
 // const emit = defineEmits(['click']);
 const $q = useQuasar();
 const audioService = useAudioService();
+const downloadService = useBeatmapDownloadService();
 
 // 默认封面图片
 const defaultCover = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg.png';
 
-// 计算属性
-const coverImage = computed(() => {
-  return props.beatmapset.covers?.card || props.beatmapset.covers?.cover || defaultCover;
-});
-
+// 标题显示（优先使用 unicode）
 const displayTitle = computed(() => {
   return props.beatmapset.title_unicode || props.beatmapset.title;
 });
 
+// 艺术家显示（优先使用 unicode）
 const displayArtist = computed(() => {
   return props.beatmapset.artist_unicode || props.beatmapset.artist;
 });
 
-const sortedBeatmaps = computed(() => {
-  return [...props.beatmapset.beatmaps]
-    .sort((a, b) => a.difficulty_rating - b.difficulty_rating)
-    .slice(0, 6); // 最多显示6个难度
+const coverImage = computed(() => {
+  // 优先使用高质量的 card 图片，其次是 cover，最后是默认图片
+  const covers = props.beatmapset.covers;
+  if (covers?.card) {
+    return covers.card;
+  }
+  if (covers?.cover) {
+    return covers.cover;
+  }
+  return defaultCover;
+});
+
+// 计算下载进度
+const downloadProgress = computed(() => {
+  return downloadService.getDownloadProgress(props.beatmapset.id);
 });
 
 // 音频播放状态
@@ -210,7 +265,10 @@ const getPlayButtonIcon = computed(() => {
 // 图片加载错误处理
 const onImageError = (event: Event) => {
   const imgElement = event.target as HTMLImageElement;
-  imgElement.src = defaultCover;
+  // 防止无限循环，只在不是默认图片时才设置为默认图片
+  if (imgElement.src !== defaultCover) {
+    imgElement.src = defaultCover;
+  }
 };
 
 // 格式化数字
@@ -293,14 +351,58 @@ const openInBrowser = () => {
   }
 };
 
-const downloadBeatmap = () => {
-  // TODO: 实现下载功能
+const downloadBeatmap = async () => {
+  const beatmapsetId = props.beatmapset.id;
+  const title = displayTitle.value;
+
+  // 检查是否已在下载中
+  if (downloadService.isDownloading(beatmapsetId)) {
+    $q.notify({
+      message: `"${title}" is already downloading`,
+      icon: 'info',
+      color: 'info',
+    });
+    return;
+  }
+
+  console.log(`[BeatmapCard] Starting download for beatmapset ID: ${beatmapsetId} - ${title}`);
+
+  // 显示开始下载通知
   $q.notify({
-    message: `Download for "${displayTitle.value}" not yet implemented`,
+    message: `Starting download: ${title}`,
     icon: 'download',
     color: 'info',
+    timeout: 2000,
   });
+
+  try {
+    await downloadService.downloadBeatmap(beatmapsetId, title);
+
+    // 成功通知
+    $q.notify({
+      message: `Successfully downloaded: ${title}`,
+      icon: 'check_circle',
+      color: 'positive',
+      timeout: 3000,
+    });
+  } catch (error) {
+    console.error('[BeatmapCard] Download failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Download failed';
+
+    // 错误通知
+    $q.notify({
+      message: `Download failed: ${errorMessage}`,
+      icon: 'error',
+      color: 'negative',
+      timeout: 5000,
+    });
+  }
 };
+
+// 按难度排序的谱面列表
+const sortedBeatmaps = computed(() => {
+  return [...props.beatmapset.beatmaps].sort((a, b) => a.difficulty_rating - b.difficulty_rating);
+});
 
 // 组件卸载时清理资源
 onUnmounted(() => {
@@ -341,6 +443,11 @@ onUnmounted(() => {
   overflow: hidden;
 
   .card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; // 保证图片完全填充
+    object-position: center;
+    background: #222;
     transition: transform 0.3s ease;
   }
 
@@ -467,6 +574,17 @@ onUnmounted(() => {
   .q-btn {
     font-size: 12px;
     padding: 4px 12px;
+  }
+
+  .download-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+
+    .download-progress-mini {
+      width: 100%;
+      min-width: 80px;
+    }
   }
 }
 

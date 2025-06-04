@@ -2,7 +2,15 @@
   <q-card class="playlist-card cursor-pointer" @click="$emit('click')" flat bordered>
     <!-- 封面图片 -->
     <div class="card-image-container">
-      <q-img :src="dynamicCoverImage" :alt="`${playlist.name} cover`" class="card-image" fit="cover">
+      <q-img
+        :src="dynamicCoverImage"
+        :alt="`${playlist.name} cover`"
+        class="card-image"
+        fit="cover"
+        :ratio="1.8"
+        @error="onImageError"
+        style="object-fit: cover; object-position: center; background: #222"
+      >
         <template #loading>
           <div class="absolute-full flex flex-center">
             <q-spinner color="white" size="2em" />
@@ -18,7 +26,14 @@
 
       <!-- 播放按钮叠加层 -->
       <div class="play-overlay absolute-full flex flex-center">
-        <q-btn fab color="primary" icon="play_arrow" size="md" class="play-button" @click.stop="$emit('play')" />
+        <q-btn
+          fab
+          color="primary"
+          icon="play_arrow"
+          size="md"
+          class="play-button"
+          @click.stop="$emit('play')"
+        />
       </div>
     </div>
 
@@ -57,9 +72,23 @@
 
     <!-- 操作按钮 -->
     <q-card-actions align="right" class="card-actions">
-      <q-btn flat color="primary" icon="open_in_new" label="View" size="sm" @click.stop="$emit('view')" />
-      <q-btn v-if="!playlist.isDefault" flat color="negative" icon="delete" label="Delete" size="sm"
-        @click.stop="$emit('delete')" />
+      <q-btn
+        flat
+        color="primary"
+        icon="open_in_new"
+        label="View"
+        size="sm"
+        @click.stop="$emit('view')"
+      />
+      <q-btn
+        v-if="!playlist.isDefault"
+        flat
+        color="negative"
+        icon="delete"
+        label="Delete"
+        size="sm"
+        @click.stop="$emit('delete')"
+      />
     </q-card-actions>
   </q-card>
 </template>
@@ -83,19 +112,26 @@ defineEmits<{
   delete: [];
 }>();
 
-// 动态封面图片
+const defaultCover = '/icons/favicon-128x128.png';
+
+// 动态封面图片 - 使用第一首歌的封面
 const dynamicCoverImage = computed(() => {
   if (props.playlist.tracks.length === 0) {
-    return '/icons/favicon-128x128.png'; // 默认封面
+    return defaultCover;
   }
-
-  // 使用第一首歌的 osu 封面
   const firstTrack = props.playlist.tracks[0];
   if (firstTrack) {
-    return `https://assets.ppy.sh/beatmaps/${firstTrack.beatmapsetId}/covers/cover.jpg`;
+    // 优先使用 card 尺寸的封面图片，适合卡片显示
+    return `https://assets.ppy.sh/beatmaps/${firstTrack.beatmapsetId}/covers/card.jpg`;
   }
-  return '/icons/favicon-128x128.png';
+  return defaultCover;
 });
+
+// 图片加载错误处理
+const onImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  img.src = defaultCover;
+};
 
 // 格式化总时长
 const formatTotalDuration = (seconds: number): string => {
@@ -113,7 +149,7 @@ const formatUpdateTime = (dateString: string): string => {
   try {
     return formatDistanceToNow(parseISO(dateString), {
       addSuffix: true,
-      locale: enUS
+      locale: enUS,
     });
   } catch (e) {
     console.warn(`Failed to parse date: ${dateString}`, e);
@@ -152,6 +188,11 @@ const formatUpdateTime = (dateString: string): string => {
   overflow: hidden;
 
   .card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; // 保证图片完全填充
+    object-position: center;
+    background: #222;
     transition: transform 0.3s ease;
   }
 

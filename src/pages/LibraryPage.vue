@@ -258,11 +258,11 @@ const deletePlaylist = async () => {
 };
 
 // 创建新歌单
-const createNewPlaylist = () => {
+const createNewPlaylist = async () => {
   if (!newPlaylistName.value.trim()) return;
 
   try {
-    const newPlaylist = playlistStore.createPlaylist(
+    const newPlaylist = await playlistStore.createPlaylist(
       newPlaylistName.value.trim(),
       newPlaylistDescription.value.trim(),
       []

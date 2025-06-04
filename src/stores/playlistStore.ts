@@ -1,6 +1,5 @@
 // src/stores/playlistStore.ts
 import { defineStore } from 'pinia';
-import axios from 'axios';
 
 export interface PlaylistTrack {
   beatmapsetId: number;
@@ -15,7 +14,6 @@ export interface Playlist {
   id: string;
   name: string;
   description: string;
-  coverImage: string;
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
@@ -97,30 +95,49 @@ export const usePlaylistStore = defineStore('playlist', {
       this.error = null;
 
       try {
-        // 获取歌单文件列表
-        const playlistFiles = ['my-favorites.json', 'electronic-vibes.json', 'chill-anime.json'];
+        // 在 Electron 环境中，通过 IPC 加载歌单文件
+        if (window.electron?.ipcRenderer) {
+          const result: {
+            success: boolean;
+            playlists?: unknown[];
+            error?: string;
+          } = await window.electron.ipcRenderer.invoke('load-playlist-files');
 
-        const playlists: Playlist[] = [];
-
-        // 加载每个歌单文件
-        for (const filename of playlistFiles) {
-          try {
-            const response = await axios.get(`/playlists/${filename}`);
-            playlists.push(response.data);
-          } catch (fileError) {
-            console.warn(`Failed to load playlist: ${filename}`, fileError);
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to load playlist files');
           }
+
+          const loadedPlaylists = (result.playlists || []) as Playlist[];
+          console.log(`[PlaylistStore] Loaded ${loadedPlaylists.length} playlists from files`);
+
+          // 如果没有找到任何歌单文件，创建默认的"我的收藏"歌单
+          if (loadedPlaylists.length === 0) {
+            console.log('[PlaylistStore] No playlist files found, creating default playlist');
+            const defaultPlaylist = this.createDefaultPlaylist();
+            await this.savePlaylistToFile(defaultPlaylist);
+            loadedPlaylists.push(defaultPlaylist);
+          }
+
+          this.playlists = loadedPlaylists.sort((a, b) => {
+            // 默认歌单排在最前面
+            if (a.isDefault && !b.isDefault) return -1;
+            if (!a.isDefault && b.isDefault) return 1;
+            // 其他按创建时间排序
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          });
+        } else {
+          // 浏览器环境中的降级处理
+          console.warn(
+            '[PlaylistStore] Not in Electron environment, creating default playlist only',
+          );
+
+          // 在浏览器环境中，我们只创建一个默认歌单
+          // 因为不能访问用户的 ~/Music/osu-music/ 目录
+          const defaultPlaylist = this.createDefaultPlaylist();
+          this.playlists = [defaultPlaylist];
         }
 
-        this.playlists = playlists.sort((a, b) => {
-          // 默认歌单排在最前面
-          if (a.isDefault && !b.isDefault) return -1;
-          if (!a.isDefault && b.isDefault) return 1;
-          // 其他按创建时间排序
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-
-        console.log(`Loaded ${this.playlists.length} playlists`);
+        console.log(`[PlaylistStore] Successfully loaded ${this.playlists.length} playlists`);
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to load playlists';
         console.error('Error loading playlists:', error);
@@ -146,7 +163,7 @@ export const usePlaylistStore = defineStore('playlist', {
     /**
      * 添加歌曲到指定歌单
      */
-    addTrackToPlaylist(playlistId: string, track: Omit<PlaylistTrack, 'addedAt'>) {
+    async addTrackToPlaylist(playlistId: string, track: Omit<PlaylistTrack, 'addedAt'>) {
       const playlist = this.getPlaylistById(playlistId);
       if (!playlist) {
         throw new Error('Playlist not found');
@@ -168,14 +185,15 @@ export const usePlaylistStore = defineStore('playlist', {
       playlist.totalDuration = playlist.tracks.reduce((total, t) => total + t.duration, 0);
       playlist.updatedAt = new Date().toISOString();
 
-      // TODO: 在实际应用中，这里应该保存到服务器或本地存储
+      // 保存到文件
+      await this.savePlaylistToFile(playlist);
       console.log(`Added track "${track.title}" to playlist "${playlist.name}"`);
     },
 
     /**
      * 从歌单中移除歌曲
      */
-    removeTrackFromPlaylist(playlistId: string, beatmapsetId: number) {
+    async removeTrackFromPlaylist(playlistId: string, beatmapsetId: number) {
       const playlist = this.getPlaylistById(playlistId);
       if (!playlist) {
         throw new Error('Playlist not found');
@@ -192,6 +210,8 @@ export const usePlaylistStore = defineStore('playlist', {
         playlist.totalDuration = playlist.tracks.reduce((total, t) => total + t.duration, 0);
         playlist.updatedAt = new Date().toISOString();
 
+        // 保存到文件
+        await this.savePlaylistToFile(playlist);
         console.log(`Removed track "${removedTrack.title}" from playlist "${playlist.name}"`);
       }
     },
@@ -199,12 +219,15 @@ export const usePlaylistStore = defineStore('playlist', {
     /**
      * 创建新歌单
      */
-    createPlaylist(name: string, description: string = '', tags: string[] = []): Playlist {
+    async createPlaylist(
+      name: string,
+      description: string = '',
+      tags: string[] = [],
+    ): Promise<Playlist> {
       const newPlaylist: Playlist = {
         id: `custom-${Date.now()}`,
         name,
         description,
-        coverImage: '/icons/favicon-128x128.png',
         isDefault: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -216,7 +239,8 @@ export const usePlaylistStore = defineStore('playlist', {
 
       this.playlists.push(newPlaylist);
 
-      // TODO: 在实际应用中，这里应该保存到服务器或本地存储
+      // 保存到文件
+      await this.savePlaylistToFile(newPlaylist);
       console.log(`Created new playlist: "${name}"`);
 
       return newPlaylist;
@@ -242,10 +266,18 @@ export const usePlaylistStore = defineStore('playlist', {
         this.currentPlaylist = null;
       }
 
-      console.log(`Deleted playlist: "${playlist.name}"`);
+      // 删除文件
+      if (window.electron?.ipcRenderer) {
+        const filename = `${playlist.id}.json`;
+        const result: { success: boolean; error?: string } =
+          await window.electron.ipcRenderer.invoke('delete-playlist-file', filename);
 
-      // TODO: 在实际应用中，这里应该保存到服务器或本地存储
-      return Promise.resolve();
+        if (!result.success) {
+          console.error(`Failed to delete playlist file: ${result.error}`);
+        }
+      }
+
+      console.log(`Deleted playlist: "${playlist.name}"`);
     },
 
     /**
@@ -268,6 +300,43 @@ export const usePlaylistStore = defineStore('playlist', {
         return `${hours}h ${minutes}m`;
       }
       return `${minutes}m`;
+    },
+
+    /**
+     * 创建默认歌单（我的收藏）
+     */
+    createDefaultPlaylist(): Playlist {
+      return {
+        id: 'my-favorites',
+        name: '我的收藏',
+        description: '收藏的音乐',
+        isDefault: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        trackCount: 0,
+        totalDuration: 0,
+        tags: ['favorites'],
+        tracks: [],
+      };
+    },
+
+    /**
+     * 保存歌单到文件
+     */
+    async savePlaylistToFile(playlist: Playlist): Promise<void> {
+      if (window.electron?.ipcRenderer) {
+        const filename = `${playlist.id}.json`;
+        const result: { success: boolean; error?: string } =
+          await window.electron.ipcRenderer.invoke('save-playlist-file', filename, playlist);
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to save playlist file');
+        }
+
+        console.log(`[PlaylistStore] Saved playlist "${playlist.name}" to file: ${filename}`);
+      } else {
+        console.warn('[PlaylistStore] Not in Electron environment, cannot save playlist to file');
+      }
     },
   },
 });
