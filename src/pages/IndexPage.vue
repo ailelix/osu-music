@@ -15,14 +15,8 @@
             {{ authStore.user.username }}
           </h2>
           <div class="user-badges q-mb-sm">
-            <q-chip
-              v-if="authStore.user.is_supporter"
-              color="pink"
-              text-color="white"
-              icon="favorite"
-              size="sm"
-              class="supporter-badge"
-            >
+            <q-chip v-if="authStore.user.is_supporter" color="pink" text-color="white" icon="favorite" size="sm"
+              class="supporter-badge">
               Supporter
             </q-chip>
           </div>
@@ -39,10 +33,7 @@
       </div>
 
       <h1 class="text-h2 text-weight-bold q-mb-md animated-greeting">{{ greeting }}</h1>
-      <p
-        class="text-subtitle1 text-grey-7 q-mb-lg"
-        style="max-width: 500px; margin-left: auto; margin-right: auto"
-      >
+      <p class="text-subtitle1 text-grey-7 q-mb-lg" style="max-width: 500px; margin-left: auto; margin-right: auto">
         Your Osu! music hub. Discover, listen, and enjoy.
       </p>
     </section>
@@ -106,45 +97,15 @@
     <!-- Call to Action -->
     <section class="q-py-xl text-center cta-buttons">
       <template v-if="authStore.isAuthenticated && authStore.user">
-        <q-btn
-          :to="{ name: 'settings' }"
-          label="Account & Settings"
-          color="primary"
-          rounded
-          icon="manage_accounts"
-          class="q-px-lg q-mr-md"
-          unelevated
-        />
-        <q-btn
-          label="Logout"
-          color="negative"
-          outline
-          rounded
-          icon="logout"
-          @click="handleLogout"
-          class="q-px-lg"
-        />
+        <q-btn :to="{ name: 'settings' }" label="Account & Settings" color="primary" rounded icon="manage_accounts"
+          class="q-px-lg q-mr-md" unelevated />
+        <q-btn label="Logout" color="negative" outline rounded icon="logout" @click="handleLogout" class="q-px-lg" />
       </template>
       <template v-else>
-        <q-btn
-          :to="{ name: 'authSettings' }"
-          label="Setup Osu! Authentication"
-          color="secondary"
-          size="lg"
-          unelevated
-          rounded
-          icon="account_circle"
-          class="q-px-xl q-py-sm q-mr-md main-cta"
-        />
-        <q-btn
-          :to="{ name: 'settings' }"
-          label="General Settings"
-          color="grey-7"
-          outline
-          rounded
-          icon="settings"
-          class="q-px-lg"
-        />
+        <q-btn :to="{ name: 'authSettings' }" label="Setup Osu! Authentication" color="secondary" size="lg" unelevated
+          rounded icon="account_circle" class="q-px-xl q-py-sm q-mr-md main-cta" />
+        <q-btn :to="{ name: 'settings' }" label="General Settings" color="grey-7" outline rounded icon="settings"
+          class="q-px-lg" />
       </template>
     </section>
   </q-page>
@@ -175,7 +136,7 @@ function handleLogout() {
     message: 'You have been logged out.',
     icon: 'info',
   });
-  router.push({ name: 'home' }).catch(() => {});
+  router.push({ name: 'home' }).catch(() => { });
 }
 </script>
 
@@ -201,8 +162,8 @@ function handleLogout() {
 
       .avatar-ring {
         position: absolute;
-        width: 100%;
-        height: 100%;
+        width: calc(100%);
+        height: calc(100%);
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%) scale(1.1);
@@ -252,6 +213,7 @@ function handleLogout() {
     transition:
       transform 0.2s ease-out,
       box-shadow 0.2s ease-out;
+
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
@@ -263,8 +225,8 @@ function handleLogout() {
   display: flex;
   align-items: center;
   border-bottom: 2px solid $primary;
-  padding-bottom: 8px;
-  margin-bottom: 24px;
+  padding-bottom: calc(8px);
+  margin-bottom: calc(24px);
 }
 
 .recommend-section {
@@ -274,13 +236,14 @@ function handleLogout() {
 }
 
 .placeholder-card {
-  min-height: 150px;
+  min-height: calc(150px);
   display: flex;
   align-items: center;
   justify-content: center;
   transition:
     box-shadow 0.3s ease-in-out,
     transform 0.3s ease-in-out;
+
   &:hover {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     transform: translateY(-4px);
@@ -292,7 +255,7 @@ function handleLogout() {
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0; // 桌面端 gap 由按钮自身 margin 控制
+  gap: calc(0); // 桌面端 gap 由按钮自身 margin 控制
 
   // 移动端竖直排列并加间距
   @media (max-width: 600px) {
@@ -312,18 +275,19 @@ function handleLogout() {
   }
 }
 
-@media (max-width: 600px), (orientation: portrait) {
+@media (max-width: 600px),
+(orientation: portrait) {
   .cta-buttons {
     flex-direction: column;
     align-items: stretch;
 
     .q-btn {
-      margin-bottom: 16px;
-      margin-right: 0 !important;
+      margin-bottom: calc(16px);
+      margin-right: calc(0) !important;
     }
 
     .q-btn:last-child {
-      margin-bottom: 0;
+      margin-bottom: calc(0);
     }
   }
 }
@@ -334,6 +298,7 @@ function handleLogout() {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -345,6 +310,7 @@ function handleLogout() {
     transform: translate(-50%, -50%) scale(1.05);
     opacity: 0.7;
   }
+
   100% {
     transform: translate(-50%, -50%) scale(1.15);
     opacity: 0;
@@ -352,6 +318,7 @@ function handleLogout() {
 }
 
 @keyframes gradient-shift {
+
   0%,
   100% {
     background: linear-gradient(45deg, $primary, #ff6b9d);
@@ -359,6 +326,7 @@ function handleLogout() {
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
   50% {
     background: linear-gradient(45deg, #ff6b9d, $primary);
     -webkit-background-clip: text;
@@ -368,11 +336,13 @@ function handleLogout() {
 }
 
 @keyframes sparkle {
+
   0%,
   100% {
     transform: scale(1);
     filter: brightness(1);
   }
+
   50% {
     transform: scale(1.05);
     filter: brightness(1.2);
@@ -380,10 +350,12 @@ function handleLogout() {
 }
 
 @keyframes float {
+
   0%,
   100% {
     transform: translateY(0px);
   }
+
   50% {
     transform: translateY(-10px);
   }

@@ -10,28 +10,14 @@
     <div class="search-controls q-mb-xl">
       <!-- 主搜索框 -->
       <div class="search-input-container q-mb-md">
-        <q-input
-          v-model="searchQuery"
-          placeholder="Search for songs, artists, or beatmaps..."
-          filled
-          dark
-          class="search-input"
-          @keyup.enter="() => performSearch()"
-          clearable
-        >
+        <q-input v-model="searchQuery" placeholder="Search for songs, artists, or beatmaps..." filled dark
+          class="search-input" @keyup.enter="() => performSearch()" clearable>
           <template #prepend>
             <q-icon name="search" />
           </template>
           <template #append>
-            <q-btn
-              flat
-              round
-              icon="search"
-              color="primary"
-              @click="() => performSearch()"
-              :loading="isSearching"
-              :disable="!searchQuery.trim()"
-            />
+            <q-btn flat round icon="search" color="primary" @click="() => performSearch()" :loading="isSearching"
+              :disable="!searchQuery.trim()" />
           </template>
         </q-input>
       </div>
@@ -39,56 +25,19 @@
       <!-- 过滤器行 -->
       <div class="search-filters row q-gutter-md">
         <!-- 游戏模式 -->
-        <q-select
-          v-model="selectedMode"
-          :options="modeOptions"
-          option-value="value"
-          option-label="label"
-          filled
-          dark
-          label="Game Mode"
-          class="col-auto"
-          style="min-width: 150px"
-          @update:model-value="onFilterChange"
-        />
+        <q-select v-model="selectedMode" :options="modeOptions" option-value="value" option-label="label" filled dark
+          label="Game Mode" class="col-auto" style="min-width: calc(150px)" @update:model-value="onFilterChange" />
 
         <!-- 排序方式 -->
-        <q-select
-          v-model="sortBy"
-          :options="sortOptions"
-          option-value="value"
-          option-label="label"
-          filled
-          dark
-          label="Sort By"
-          class="col-auto"
-          style="min-width: 150px"
-          @update:model-value="onFilterChange"
-        />
+        <q-select v-model="sortBy" :options="sortOptions" option-value="value" option-label="label" filled dark
+          label="Sort By" class="col-auto" style="min-width: calc(150px)" @update:model-value="onFilterChange" />
 
         <!-- 状态过滤 -->
-        <q-select
-          v-model="statusFilter"
-          :options="statusOptions"
-          option-value="value"
-          option-label="label"
-          filled
-          dark
-          label="Status"
-          class="col-auto"
-          style="min-width: 130px"
-          @update:model-value="onFilterChange"
-        />
+        <q-select v-model="statusFilter" :options="statusOptions" option-value="value" option-label="label" filled dark
+          label="Status" class="col-auto" style="min-width: calc(130px)" @update:model-value="onFilterChange" />
 
         <!-- 重置按钮 -->
-        <q-btn
-          flat
-          color="secondary"
-          icon="refresh"
-          label="Reset"
-          @click="resetFilters"
-          class="col-auto"
-        />
+        <q-btn flat color="secondary" icon="refresh" label="Reset" @click="resetFilters" class="col-auto" />
       </div>
     </div>
 
@@ -101,10 +50,7 @@
       </div>
 
       <!-- 无搜索结果 -->
-      <div
-        v-else-if="searchPerformed && searchResults.length === 0"
-        class="no-results text-center q-py-xl"
-      >
+      <div v-else-if="searchPerformed && searchResults.length === 0" class="no-results text-center q-py-xl">
         <q-icon name="search_off" size="60px" color="grey-6" />
         <h5 class="text-grey-6 q-mt-md">No Results Found</h5>
         <p class="text-grey-7">Try adjusting your search terms or filters.</p>
@@ -122,12 +68,8 @@
 
         <!-- Beatmap 列表 -->
         <div class="beatmap-grid">
-          <BeatmapCard
-            v-for="beatmapset in searchResults"
-            :key="beatmapset.id"
-            :beatmapset="beatmapset"
-            @click="openBeatmapDetails(beatmapset)"
-          />
+          <BeatmapCard v-for="beatmapset in searchResults" :key="beatmapset.id" :beatmapset="beatmapset"
+            @click="openBeatmapDetails(beatmapset)" />
         </div>
       </div>
 
@@ -391,8 +333,8 @@ onMounted(() => {
 
 .search-input-container {
   .search-input {
-    max-width: 600px;
-    margin: 0 auto;
+    max-width: calc(600px);
+    margin: calc(0 auto);
 
     :deep(.q-field__control) {
       border-radius: 12px;
@@ -420,19 +362,19 @@ onMounted(() => {
 
 .beatmap-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(calc(320px), 1fr));
+  gap: calc(20px);
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: calc(16px);
   }
 }
 
 .loading-container,
 .no-results,
 .default-state {
-  min-height: 300px;
+  min-height: calc(300px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -454,8 +396,8 @@ onMounted(() => {
 
     .q-select,
     .q-btn {
-      width: 100%;
-      margin-bottom: 8px;
+      width: calc(100%);
+      margin-bottom: calc(8px);
     }
   }
 }
