@@ -102,3 +102,44 @@ body {
     padding: $border-width;
   }
 }
+
+// Page Transition Animations
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition:
+    transform 0.3s ease-out,
+    opacity 0.3s ease-out;
+}
+
+.slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(100%);
+}
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-100%);
+}
+
+.slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(-100%);
+}
+.slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+// Ensure router-view container allows for absolute positioning of transitioning views
+// .q-page-container {
+//   position: relative;
+//   overflow-x: hidden; // Prevent horizontal scrollbars during transition
+// }
+
+// .q-page-container > .q-page {
+//   position: absolute; // Needed for smooth transitions if pages overlap
+//   width: 100%;
+//   top: 0;
+//   left: 0;
+// }

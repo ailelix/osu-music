@@ -326,8 +326,33 @@ export const usePlaylistStore = defineStore('playlist', {
     async savePlaylistToFile(playlist: Playlist): Promise<void> {
       if (window.electron?.ipcRenderer) {
         const filename = `${playlist.id}.json`;
+
+        // 创建一个可序列化的播放列表副本
+        const serializablePlaylist = {
+          id: playlist.id,
+          name: playlist.name,
+          description: playlist.description,
+          isDefault: playlist.isDefault,
+          trackCount: playlist.trackCount,
+          totalDuration: playlist.totalDuration,
+          createdAt: playlist.createdAt,
+          updatedAt: playlist.updatedAt,
+          tracks: playlist.tracks.map((track) => ({
+            beatmapsetId: track.beatmapsetId,
+            title: track.title,
+            artist: track.artist,
+            duration: track.duration,
+            bpm: track.bpm,
+            addedAt: track.addedAt,
+          })),
+        };
+
         const result: { success: boolean; error?: string } =
-          await window.electron.ipcRenderer.invoke('save-playlist-file', filename, playlist);
+          await window.electron.ipcRenderer.invoke(
+            'save-playlist-file',
+            filename,
+            serializablePlaylist,
+          );
 
         if (!result.success) {
           throw new Error(result.error || 'Failed to save playlist file');

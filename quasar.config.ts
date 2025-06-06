@@ -1,10 +1,10 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
-import { defineConfig } from '#q-app/wrappers';
+import { configure } from 'quasar/wrappers';
 import { fileURLToPath } from 'node:url';
 
-export default defineConfig((ctx) => {
+export default configure((ctx) => {
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
@@ -104,8 +104,8 @@ export default defineConfig((ctx) => {
           target: 'https://osu.ppy.sh/api/v2',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/osu-api/, ''),
-        }
-      }
+        },
+      },
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
@@ -123,7 +123,7 @@ export default defineConfig((ctx) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: ['Notify'],
+      plugins: ['Notify', 'Dialog'],
     },
 
     // animations: 'all', // --- includes all animations

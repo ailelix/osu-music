@@ -1,5 +1,5 @@
 <template>
-  <q-page class="library-page q-pa-md">
+  <q-page class="library-page">
     <!-- 胶囊切换栏 -->
     <div class="capsule-switch-bar q-mb-xl flex flex-center">
       <div class="capsule-switch">
@@ -8,117 +8,118 @@
             { label: 'Playlists', value: 'playlists' },
             { label: 'All Music', value: 'allmusic' }
           ]" />
+        <!-- Removed @update:model-value="onTabChange" for now -->
       </div>
     </div>
 
-    <!-- Playlists 内容 -->
-    <div v-if="activeTab === 'playlists'">
-      <!-- 页面标题和统计卡片 -->
-      <section class="page-header q-mb-xl">
-        <div class="title-section">
-          <h4 class="q-mt-none q-mb-md text-h4 text-white">
-            <q-icon name="library_music" class="q-mr-sm" />
-            🎵 My Playlists
-          </h4>
-          <q-separator dark spaced class="q-mb-lg" />
-          <p class="text-subtitle1 text-grey-7 text-right">
-            Manage and play your music collection
-          </p>
-        </div>
-        <div class="stats-cards row q-col-gutter-md q-mt-lg">
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-card flat bordered class="stat-card">
-              <q-card-section class="text-center">
-                <q-icon name="queue_music" size="2rem" color="primary" />
-                <div class="text-h6 q-mt-sm">{{ playlistStore.playlists.length }}</div>
-                <div class="text-caption text-grey-6">Playlists</div>
-              </q-card-section>
-            </q-card>
+    <!-- 内容区域，移除过渡效果 -->
+    <div class="library-content-container">
+      <!-- Playlists 内容 -->
+      <div v-if="activeTab === 'playlists'" class="playlist-content-area page-content">
+        <!-- 页面标题和统计卡片 -->
+        <section class="page-header q-mb-xl">
+          <div class="title-section">
+            <h4 class="q-mt-none q-mb-md text-h4 text-white">
+              <q-icon name="library_music" class="q-mr-sm" />
+              🎵 My Playlists
+            </h4>
+            <q-separator dark spaced class="q-mb-lg" />
           </div>
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-card flat bordered class="stat-card">
-              <q-card-section class="text-center">
-                <q-icon name="music_note" size="2rem" color="secondary" />
-                <div class="text-h6 q-mt-sm">{{ playlistStore.totalTracks }}</div>
-                <div class="text-caption text-grey-6">Tracks</div>
-              </q-card-section>
-            </q-card>
-          </div>
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-card flat bordered class="stat-card">
-              <q-card-section class="text-center">
-                <q-icon name="schedule" size="2rem" color="positive" />
-                <div class="text-h6 q-mt-sm">{{ playlistStore.totalDurationMinutes }}</div>
-                <div class="text-caption text-grey-6">Minutes</div>
-              </q-card-section>
-            </q-card>
-          </div>
-          <div class="col-12 col-sm-6 col-md-3">
-            <q-card flat bordered class="stat-card">
-              <q-card-section class="text-center">
-                <q-icon name="star" size="2rem" color="warning" />
-                <div class="text-h6 q-mt-sm">1</div>
-                <div class="text-caption text-grey-6">Favorites</div>
-              </q-card-section>
-            </q-card>
-          </div>
-        </div>
-      </section>
-      <q-separator spaced="xl" />
-      <!-- 播放列表页面 -->
-      <section class="content-area">
-        <div class="playlists-content">
-          <!-- 操作栏 -->
-          <div class="actions-bar q-mb-lg">
-            <div class="row items-center justify-between">
-              <div class="col-auto">
-                <h2 class="text-h5 text-weight-medium q-mb-none">
-                  My Playlists
-                </h2>
-              </div>
-              <div class="col-auto">
-                <q-btn color="primary" icon="add" label="Create Playlist" unelevated rounded
-                  @click="showCreatePlaylistDialog = true" />
-              </div>
+          <div class="stats-cards row q-col-gutter-md q-mt-lg">
+            <div class="col-12 col-sm-6 col-md-3">
+              <q-card flat bordered class="stat-card">
+                <q-card-section class="text-center">
+                  <q-icon name="queue_music" size="2rem" color="primary" />
+                  <div class="text-h6 q-mt-sm">{{ playlistStore.playlists.length }}</div>
+                  <div class="text-caption text-grey-6">Playlists</div>
+                </q-card-section>
+              </q-card>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <q-card flat bordered class="stat-card">
+                <q-card-section class="text-center">
+                  <q-icon name="music_note" size="2rem" color="secondary" />
+                  <div class="text-h6 q-mt-sm">{{ playlistStore.totalTracks }}</div>
+                  <div class="text-caption text-grey-6">Tracks</div>
+                </q-card-section>
+              </q-card>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <q-card flat bordered class="stat-card">
+                <q-card-section class="text-center">
+                  <q-icon name="schedule" size="2rem" color="positive" />
+                  <div class="text-h6 q-mt-sm">{{ playlistStore.totalDurationMinutes }}</div>
+                  <div class="text-caption text-grey-6">Minutes</div>
+                </q-card-section>
+              </q-card>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <q-card flat bordered class="stat-card">
+                <q-card-section class="text-center">
+                  <q-icon name="star" size="2rem" color="warning" />
+                  <div class="text-h6 q-mt-sm">1</div>
+                  <div class="text-caption text-grey-6">Favorites</div>
+                </q-card-section>
+              </q-card>
             </div>
           </div>
-          <!-- 加载/错误/空/歌单网格 -->
-          <div v-if="playlistStore.isLoading" class="loading-section text-center q-py-xl">
-            <q-spinner color="primary" size="3rem" />
-            <p class="text-subtitle2 text-grey-6 q-mt-md">Loading playlists...</p>
-          </div>
-          <div v-else-if="playlistStore.error" class="error-section text-center q-py-xl">
-            <q-icon name="error_outline" size="4rem" color="negative" />
-            <h5 class="text-negative q-mt-md">Loading Failed</h5>
-            <p class="text-grey-6">{{ playlistStore.error }}</p>
-            <q-btn color="primary" label="Retry" icon="refresh" outline @click="loadPlaylists" class="q-mt-md" />
-          </div>
-          <div v-else class="playlists-grid">
-            <div v-if="playlistStore.allPlaylistsSorted.length > 0" class="all-playlists">
-              <div class="row q-col-gutter-lg">
-                <div v-for="playlist in playlistStore.allPlaylistsSorted" :key="playlist.id"
-                  class="col-12 col-sm-6 col-md-4 col-lg-3">
-                  <PlaylistCard :playlist="playlist" @click="openPlaylistDetails(playlist)"
-                    @play="playPlaylist(playlist)" @view="openPlaylistDetails(playlist)"
-                    @delete="confirmDeletePlaylist(playlist)" />
+        </section>
+        <q-separator spaced="xl" />
+        <!-- 播放列表页面 -->
+        <section class="content-area">
+          <div class="playlists-content">
+            <!-- 操作栏 -->
+            <div class="actions-bar q-mb-lg">
+              <div class="row items-center justify-between">
+                <div class="col-auto">
+                  <h2 class="text-h5 text-weight-medium q-mb-none">
+                    My Playlists
+                  </h2>
+                </div>
+                <div class="col-auto">
+                  <q-btn color="primary" icon="add" label="Create Playlist" unelevated rounded
+                    @click="showCreatePlaylistDialog = true" />
                 </div>
               </div>
             </div>
-            <div v-else class="empty-state text-center q-py-xl">
-              <q-icon name="queue_music" size="5rem" color="grey-5" />
-              <h5 class="text-grey-5 q-mt-md">No playlists yet</h5>
-              <p class="text-grey-6">Create your first playlist to start collecting music!</p>
-              <q-btn color="primary" label="Create Playlist" icon="add" unelevated rounded
-                @click="showCreatePlaylistDialog = true" class="q-mt-md" />
+            <!-- 加载/错误/空/歌单网格 -->
+            <div v-if="playlistStore.isLoading" class="loading-section text-center q-py-xl">
+              <q-spinner color="primary" size="3rem" />
+              <p class="text-subtitle2 text-grey-6 q-mt-md">Loading playlists...</p>
+            </div>
+            <div v-else-if="playlistStore.error" class="error-section text-center q-py-xl">
+              <q-icon name="error_outline" size="4rem" color="negative" />
+              <h5 class="text-negative q-mt-md">Loading Failed</h5>
+              <p class="text-grey-6">{{ playlistStore.error }}</p>
+              <q-btn color="primary" label="Retry" icon="refresh" outline @click="loadPlaylists" class="q-mt-md" />
+            </div>
+            <div v-else class="playlists-grid">
+              <div v-if="playlistStore.allPlaylistsSorted.length > 0" class="all-playlists">
+                <div class="row q-col-gutter-lg">
+                  <div v-for="playlist in playlistStore.allPlaylistsSorted" :key="playlist.id"
+                    class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <PlaylistCard :playlist="playlist" @click="openPlaylistDetails(playlist)"
+                      @play="playPlaylist(playlist)" @view="openPlaylistDetails(playlist)"
+                      @delete="confirmDeletePlaylist(playlist)" />
+                  </div>
+                </div>
+              </div>
+              <div v-else class="empty-state text-center q-py-xl">
+                <q-icon name="queue_music" size="5rem" color="grey-5" />
+                <h5 class="text-grey-5 q-mt-md">No playlists yet</h5>
+                <p class="text-grey-6">Create your first playlist to start collecting music!</p>
+                <q-btn color="primary" label="Create Playlist" icon="add" unelevated rounded
+                  @click="showCreatePlaylistDialog = true" class="q-mt-md" />
+              </div>
             </div>
           </div>
-        </div>
-      </section>
-    </div>
+        </section>
+      </div>
 
-    <!-- All Music 内容 -->
-    <div v-else-if="activeTab === 'allmusic'">
-      <AllMusicPage />
+      <!-- All Music 内容 -->
+      <div v-else-if="activeTab === 'allmusic'" class="allmusic-content-area page-content">
+        <AllMusicPage />
+      </div>
     </div>
 
     <!-- 创建歌单对话框 -->
@@ -165,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from 'vue'; // Removed unused 'watch'
 import { useQuasar } from 'quasar';
 import { usePlaylistStore, type Playlist } from 'src/stores/playlistStore';
 import PlaylistCard from 'src/components/PlaylistCard.vue';
@@ -174,15 +175,16 @@ import AllMusicPage from 'src/pages/AllMusicPage.vue';
 const $q = useQuasar();
 const playlistStore = usePlaylistStore();
 
-// 响应式数据
 const activeTab = ref('playlists');
+// const transitionName = ref('slide-left'); // Commented out for troubleshooting
+// const previousTab = ref('playlists'); // Commented out for troubleshooting
+
 const showCreatePlaylistDialog = ref(false);
 const showDeleteDialog = ref(false);
 const newPlaylistName = ref('');
 const newPlaylistDescription = ref('');
 const playlistToDelete = ref<Playlist | null>(null);
 
-// 加载歌单
 const loadPlaylists = async () => {
   try {
     await playlistStore.loadPlaylists();
@@ -191,7 +193,6 @@ const loadPlaylists = async () => {
   }
 };
 
-// 打开歌单详情
 const openPlaylistDetails = (playlist: Playlist) => {
   console.log('Opening playlist details:', playlist.name);
   $q.notify({
@@ -199,26 +200,21 @@ const openPlaylistDetails = (playlist: Playlist) => {
     icon: 'open_in_new',
     color: 'info',
   });
-
   // TODO: 导航到歌单详情页面
   // router.push({ name: 'playlistDetails', params: { id: playlist.id } });
 };
 
-// 播放歌单
 const playPlaylist = (playlist: Playlist) => {
   console.log('Playing playlist:', playlist.name);
   playlistStore.setCurrentPlaylist(playlist);
-
   $q.notify({
     message: `Now playing: ${playlist.name}`,
     icon: 'play_arrow',
     color: 'positive',
   });
-
   // TODO: 实现播放逻辑
 };
 
-// 确认删除歌单
 const confirmDeletePlaylist = (playlist: Playlist) => {
   if (playlist.isDefault) {
     $q.notify({
@@ -228,15 +224,12 @@ const confirmDeletePlaylist = (playlist: Playlist) => {
     });
     return;
   }
-
   playlistToDelete.value = playlist;
   showDeleteDialog.value = true;
 };
 
-// 删除歌单
 const deletePlaylist = async () => {
   if (!playlistToDelete.value) return;
-
   try {
     await playlistStore.deletePlaylist(playlistToDelete.value.id);
     $q.notify({
@@ -257,23 +250,19 @@ const deletePlaylist = async () => {
   }
 };
 
-// 创建新歌单
 const createNewPlaylist = async () => {
   if (!newPlaylistName.value.trim()) return;
-
   try {
     const newPlaylist = await playlistStore.createPlaylist(
       newPlaylistName.value.trim(),
       newPlaylistDescription.value.trim(),
       []
     );
-
     $q.notify({
       message: `Playlist created: ${newPlaylist.name}`,
       icon: 'playlist_add',
       color: 'positive',
     });
-
     closeCreatePlaylistDialog();
   } catch (error) {
     console.error('Failed to create playlist:', error);
@@ -285,14 +274,29 @@ const createNewPlaylist = async () => {
   }
 };
 
-// 关闭创建歌单对话框
 const closeCreatePlaylistDialog = () => {
   showCreatePlaylistDialog.value = false;
   newPlaylistName.value = '';
   newPlaylistDescription.value = '';
 };
 
-// 组件挂载时加载数据
+// const onTabChange = (newTab: string) => {
+//   if (newTab === 'allmusic' && previousTab.value === 'playlists') {
+//     transitionName.value = 'slide-left';
+//   } else if (newTab === 'playlists' && previousTab.value === 'allmusic') {
+//     transitionName.value = 'slide-right';
+//   } else {
+//     transitionName.value = ''; // No transition if same tab or unexpected change
+//   }
+//   previousTab.value = newTab;
+// };
+
+// watch(activeTab, (newVal, oldVal) => {
+//   if (oldVal !== undefined) {
+//     previousTab.value = oldVal;
+//   }
+// }, { immediate: true });
+
 onMounted(() => {
   void loadPlaylists();
 });
@@ -408,6 +412,22 @@ onMounted(() => {
       padding-bottom: calc(8px);
       margin-bottom: calc(24px);
     }
+  }
+
+  .playlist-content-area {
+    padding: 24px;
+  }
+
+  .library-content-container {
+    position: relative; // Needed for absolute positioning of transitioning elements
+    overflow-x: hidden; // Prevent scrollbars during transition
+    min-height: 400px; // Example: ensure container has height
+  }
+
+  .page-content {
+    // These styles will be applied by the global CSS for transitions
+    // but we ensure they are block-level and take full width if needed.
+    width: 100%;
   }
 }
 

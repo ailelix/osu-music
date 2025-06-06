@@ -2,15 +2,8 @@
   <q-card class="beatmap-card cursor-pointer" @click="$emit('click')" flat bordered>
     <!-- 封面图片 -->
     <div class="card-image-container">
-      <q-img
-        :src="coverImage"
-        :alt="`${beatmapset.title} cover`"
-        class="card-image"
-        fit="cover"
-        :ratio="1.8"
-        @error="onImageError"
-        style="object-fit: cover; object-position: center; background: #222"
-      >
+      <q-img :src="coverImage" :alt="`${beatmapset.title} cover`" class="card-image" fit="cover" :ratio="1.8"
+        @error="onImageError" style="object-fit: cover; object-position: center; background: #222">
         <template #loading>
           <div class="absolute-full flex flex-center">
             <q-spinner color="white" size="2em" />
@@ -25,15 +18,8 @@
 
       <!-- 播放按钮叠加层 -->
       <div class="play-overlay absolute-full flex flex-center">
-        <q-btn
-          fab
-          :color="isCurrentlyPlaying ? 'secondary' : 'primary'"
-          :icon="getPlayButtonIcon"
-          size="md"
-          class="play-button"
-          :loading="isCurrentlyLoading"
-          @click.stop="playPreview"
-        />
+        <q-btn fab :color="isCurrentlyPlaying ? 'secondary' : 'primary'" :icon="getPlayButtonIcon" size="md"
+          class="play-button" :loading="isCurrentlyLoading" @click.stop="playPreview" />
       </div>
     </div>
 
@@ -78,15 +64,9 @@
       <!-- 难度信息 -->
       <div class="difficulties q-mt-sm">
         <div class="difficulty-chips">
-          <q-chip
-            v-for="beatmap in sortedBeatmaps"
-            :key="beatmap.id"
-            :color="getDifficultyColor(beatmap.difficulty_rating)"
-            text-color="white"
-            size="sm"
-            dense
-            class="difficulty-chip"
-          >
+          <q-chip v-for="beatmap in sortedBeatmaps" :key="beatmap.id"
+            :color="getDifficultyColor(beatmap.difficulty_rating)" text-color="white" size="sm" dense
+            class="difficulty-chip">
             <q-icon :name="getModeIcon(beatmap.mode)" size="12px" class="q-mr-xs" />
             {{ beatmap.difficulty_rating.toFixed(2) }}★
           </q-chip>
@@ -95,75 +75,72 @@
     </q-card-section>
 
     <!-- 操作按钮 -->
-    <q-card-actions align="right" class="card-actions">
-      <q-btn
-        flat
-        color="primary"
-        icon="open_in_new"
-        label="View"
-        size="sm"
-        @click.stop="openInBrowser"
-      />
+    <q-card-actions class="card-actions row items-center justify-between">
+      <!-- 左侧：收藏和播放列表按钮 -->
+      <div class="left-actions row items-center">
+        <!-- 收藏按钮 -->
+        <q-btn flat round size="sm" :icon="isInFavorites ? 'favorite' : 'favorite_border'"
+          :color="isInFavorites ? 'pink' : 'grey-6'" @click.stop="toggleFavorite" :loading="isAddingToFavorites">
+          <q-tooltip>{{ isInFavorites ? 'Remove from Favorites' : 'Add to Favorites' }}</q-tooltip>
+        </q-btn>
 
-      <!-- 下载按钮和进度 -->
-      <div class="download-section">
-        <!-- 下载进度条 -->
-        <div v-if="downloadProgress" class="download-progress-mini q-mb-xs">
-          <q-linear-progress
-            :value="downloadProgress.progress / 100"
-            color="secondary"
-            size="2px"
-          />
-        </div>
+        <!-- 添加到播放列表按钮 -->
+        <q-btn flat round size="sm" icon="playlist_add" color="grey-6" @click.stop="openAddToPlaylistDialog"
+          class="q-ml-xs">
+          <q-tooltip>Add to Playlist</q-tooltip>
+        </q-btn>
+      </div>
 
-        <q-btn
-          flat
-          :color="
-            downloadProgress?.status === 'completed'
-              ? 'positive'
-              : downloadProgress?.status === 'error'
-                ? 'negative'
-                : 'secondary'
-          "
-          :icon="
-            downloadProgress?.status === 'completed'
+      <!-- 右侧：查看和下载按钮 -->
+      <div class="right-actions row items-center">
+        <q-btn flat color="primary" icon="open_in_new" label="View" size="sm" @click.stop="openInBrowser"
+          class="q-mr-sm" />
+
+        <!-- 下载按钮和进度 -->
+        <div class="download-section">
+          <!-- 下载进度条 -->
+          <div v-if="downloadProgress" class="download-progress-mini q-mb-xs">
+            <q-linear-progress :value="downloadProgress.progress / 100" color="secondary" size="2px" />
+          </div>
+
+          <q-btn flat :color="downloadProgress?.status === 'completed'
+            ? 'positive'
+            : downloadProgress?.status === 'error'
+              ? 'negative'
+              : 'secondary'
+            " :icon="downloadProgress?.status === 'completed'
               ? 'check_circle'
               : downloadProgress?.status === 'error'
                 ? 'error'
                 : 'download'
-          "
-          :label="
-            downloadProgress?.status === 'completed'
-              ? 'Downloaded'
-              : downloadProgress?.status === 'downloading'
-                ? 'Downloading...'
-                : downloadProgress?.status === 'extracting'
-                  ? 'Extracting...'
-                  : downloadProgress?.status === 'error'
-                    ? 'Failed'
-                    : 'Download'
-          "
-          size="sm"
-          :loading="
-            downloadProgress?.status === 'downloading' || downloadProgress?.status === 'extracting'
-          "
-          :disable="downloadProgress?.status === 'completed'"
-          @click.stop="downloadBeatmap"
-        >
-          <q-tooltip v-if="!downloadProgress || downloadProgress.status === 'error'">
-            Download MP3 music files (sound effects excluded)
-          </q-tooltip>
-        </q-btn>
+              " :label="downloadProgress?.status === 'completed'
+                ? 'Downloaded'
+                : downloadProgress?.status === 'downloading'
+                  ? 'Downloading...'
+                  : downloadProgress?.status === 'extracting'
+                    ? 'Extracting...'
+                    : downloadProgress?.status === 'error'
+                      ? 'Failed'
+                      : 'Download'
+                " size="sm" :loading="downloadProgress?.status === 'downloading' || downloadProgress?.status === 'extracting'
+                " :disable="downloadProgress?.status === 'completed'" @click.stop="downloadBeatmap">
+            <q-tooltip v-if="!downloadProgress || downloadProgress.status === 'error'">
+              Download MP3 music files (sound effects excluded)
+            </q-tooltip>
+          </q-btn>
+        </div>
       </div>
     </q-card-actions>
   </q-card>
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted } from 'vue';
+import { computed, ref, onUnmounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useAudioService } from '../services/audioPlayPreviewService';
 import { useBeatmapDownloadService } from 'src/services/beatmapDownloadService';
+import { usePlaylistStore, type PlaylistTrack } from 'src/stores/playlistStore';
+import AddToPlaylistDialog from './AddToPlaylistDialog.vue';
 
 interface Beatmap {
   id: number;
@@ -219,6 +196,7 @@ const props = defineProps<Props>();
 const $q = useQuasar();
 const audioService = useAudioService();
 const downloadService = useBeatmapDownloadService();
+const playlistStore = usePlaylistStore();
 
 // 默认封面图片
 const defaultCover = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg.png';
@@ -314,6 +292,103 @@ const getModeIcon = (mode: string): string => {
     mania: 'piano',
   };
   return modeIcons[mode] || 'music_note';
+};
+
+// 播放列表相关
+const isAddingToFavorites = ref(false);
+
+// 判断是否在收藏夹中
+const isInFavorites = computed(() => {
+  const favPlaylist = playlistStore.defaultPlaylist;
+  if (!favPlaylist) return false;
+  return favPlaylist.tracks.some(t => t.beatmapsetId === props.beatmapset.id);
+});
+
+// 转换为播放列表轨道格式
+const convertToPlaylistTrack = (): Omit<PlaylistTrack, 'addedAt'> => {
+  return {
+    beatmapsetId: props.beatmapset.id,
+    title: displayTitle.value,
+    artist: displayArtist.value,
+    duration: props.beatmapset.beatmaps[0]?.total_length || 0,
+    bpm: props.beatmapset.bpm
+  };
+};
+
+// 转换为 MusicTrack 格式以兼容 AddToPlaylistDialog
+const convertToMusicTrack = () => {
+  return {
+    id: props.beatmapset.id.toString(),
+    title: displayTitle.value,
+    artist: displayArtist.value,
+    album: props.beatmapset.source || 'osu! Beatmap',
+    duration: props.beatmapset.beatmaps[0]?.total_length || 0,
+    bpm: props.beatmapset.bpm,
+    coverUrl: coverImage.value
+  };
+};
+
+// 切换收藏状态
+const toggleFavorite = async () => {
+  const favPlaylist = playlistStore.defaultPlaylist;
+  if (!favPlaylist) {
+    $q.notify({
+      message: 'Favorites playlist not found',
+      icon: 'error',
+      color: 'negative',
+      timeout: 3000
+    });
+    return;
+  }
+
+  if (isAddingToFavorites.value) return;
+
+  isAddingToFavorites.value = true;
+
+  try {
+    if (isInFavorites.value) {
+      // 从收藏夹移除
+      await playlistStore.removeTrackFromPlaylist(favPlaylist.id, props.beatmapset.id);
+      $q.notify({
+        message: 'Removed from Favorites',
+        icon: 'favorite_border',
+        color: 'info',
+        timeout: 2000
+      });
+    } else {
+      // 添加到收藏夹
+      const playlistTrack = convertToPlaylistTrack();
+      await playlistStore.addTrackToPlaylist(favPlaylist.id, playlistTrack);
+      $q.notify({
+        message: 'Added to Favorites',
+        icon: 'favorite',
+        color: 'pink',
+        timeout: 2000
+      });
+    }
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+    $q.notify({
+      message: error instanceof Error ? error.message : 'Failed to update favorites',
+      icon: 'error',
+      color: 'negative',
+      timeout: 3000
+    });
+  } finally {
+    isAddingToFavorites.value = false;
+  }
+};
+
+// 打开添加到播放列表对话框
+const openAddToPlaylistDialog = () => {
+  const musicTrack = convertToMusicTrack();
+
+  $q.dialog({
+    component: AddToPlaylistDialog,
+    componentProps: {
+      track: musicTrack
+    }
+  });
 };
 
 // 操作函数

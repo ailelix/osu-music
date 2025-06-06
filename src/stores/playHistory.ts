@@ -151,13 +151,20 @@ export const usePlayHistoryStore = defineStore('playHistory', {
               limit: 1000,
               include_fails: includeFails ? 1 : 0,
             };
+            console.log(`[PlayHistoryStore] Fetching mode "${m}" with params:`, params);
             return osuApi
               .get<Score[]>(`/users/${targetUserId}/scores/recent`, {
                 params,
                 headers: { Authorization: `Bearer ${authStore.accessToken}` },
               })
-              .then((res) => res.data)
-              .catch(() => []);
+              .then((res) => {
+                console.log(`[PlayHistoryStore] Mode "${m}" returned ${res.data.length} scores`);
+                return res.data;
+              })
+              .catch((error) => {
+                console.error(`[PlayHistoryStore] Mode "${m}" failed:`, error);
+                return [];
+              });
           });
           const results = await Promise.all(requests);
           allScores = results.flat();
@@ -174,6 +181,7 @@ export const usePlayHistoryStore = defineStore('playHistory', {
           let offset = 0;
           let keepFetching = true;
           const all: Score[] = [];
+          console.log(`[PlayHistoryStore] Fetching single mode "${mode}"`);
           while (keepFetching) {
             const params: Record<string, unknown> = {
               mode: mode,
@@ -181,11 +189,15 @@ export const usePlayHistoryStore = defineStore('playHistory', {
               include_fails: includeFails ? 1 : 0,
               offset,
             };
+            console.log(`[PlayHistoryStore] Single mode "${mode}" request with params:`, params);
             const response = await osuApi.get<Score[]>(`/users/${targetUserId}/scores/recent`, {
               params,
               headers: { Authorization: `Bearer ${authStore.accessToken}` },
             });
             const newScores = response.data;
+            console.log(
+              `[PlayHistoryStore] Single mode "${mode}" returned ${newScores.length} scores`,
+            );
             if (newScores.length === 0) {
               keepFetching = false;
             } else {

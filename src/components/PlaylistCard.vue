@@ -2,15 +2,8 @@
   <q-card class="playlist-card cursor-pointer" @click="$emit('click')" flat bordered>
     <!-- 封面图片 -->
     <div class="card-image-container">
-      <q-img
-        :src="dynamicCoverImage"
-        :alt="`${playlist.name} cover`"
-        class="card-image"
-        fit="cover"
-        :ratio="1.8"
-        @error="onImageError"
-        style="object-fit: cover; object-position: center; background: #222"
-      >
+      <q-img :src="dynamicCoverImage" :alt="`${playlist.name} cover`" class="card-image" fit="cover" :ratio="1.8"
+        @error="onImageError" style="object-fit: cover; object-position: center; background: #222">
         <template #loading>
           <div class="absolute-full flex flex-center">
             <q-spinner color="white" size="2em" />
@@ -26,14 +19,7 @@
 
       <!-- 播放按钮叠加层 -->
       <div class="play-overlay absolute-full flex flex-center">
-        <q-btn
-          fab
-          color="primary"
-          icon="play_arrow"
-          size="md"
-          class="play-button"
-          @click.stop="$emit('play')"
-        />
+        <q-btn fab color="primary" icon="play_arrow" size="md" class="play-button" @click.stop="$emit('play')" />
       </div>
     </div>
 
@@ -72,23 +58,9 @@
 
     <!-- 操作按钮 -->
     <q-card-actions align="right" class="card-actions">
-      <q-btn
-        flat
-        color="primary"
-        icon="open_in_new"
-        label="View"
-        size="sm"
-        @click.stop="$emit('view')"
-      />
-      <q-btn
-        v-if="!playlist.isDefault"
-        flat
-        color="negative"
-        icon="delete"
-        label="Delete"
-        size="sm"
-        @click.stop="$emit('delete')"
-      />
+      <q-btn flat color="primary" icon="open_in_new" label="View" size="sm" @click.stop="$emit('view')" />
+      <q-btn v-if="!playlist.isDefault" flat color="negative" icon="delete" label="Delete" size="sm"
+        @click.stop="$emit('delete')" />
     </q-card-actions>
   </q-card>
 </template>
@@ -160,109 +132,138 @@ const formatUpdateTime = (dateString: string): string => {
 
 <style lang="scss" scoped>
 .playlist-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  background: rgba(30, 30, 33, 0.7); // 更深的 osu!lazer 风格背景
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.12); // 细致的边框
+  border-radius: 8px; // 稍锐利的圆角
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); // 更柔和的阴影
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-5px) scale(1.03);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45); // 增强阴影
+    background: rgba(35, 35, 40, 0.8);
+    border-color: rgba(255, 105, 180, 0.55); // 增强边框高亮
 
     .play-overlay {
       opacity: 1;
+      background: rgba(0, 0, 0, 0.5); // 悬停时叠加层更明显
     }
 
     .card-image {
-      transform: scale(1.05);
+      transform: scale(1.1); // 图片放大效果
     }
   }
 }
 
 .card-image-container {
   position: relative;
-  height: 160px;
+  height: 180px; // 稍微增加高度以获得更好的视觉比例
   overflow: hidden;
+  background-color: #18181a; // 图片加载时的深色背景
 
   .card-image {
     width: 100%;
     height: 100%;
-    object-fit: cover; // 保证图片完全填充
+    object-fit: cover;
     object-position: center;
-    background: #222;
-    transition: transform 0.3s ease;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); // 更平滑的过渡
   }
 
   .default-badge {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    padding: 4px 8px;
-    border-radius: 12px;
+    top: 10px; // 调整位置
+    left: 10px;
+    padding: 5px 10px;
+    border-radius: 6px; // 统一圆角
     font-size: 11px;
     font-weight: 600;
-    background: rgba(255, 193, 7, 0.9);
-    color: black;
+    background: linear-gradient(135deg, #ff69b4, #c77dff); // lazer 粉紫渐变
+    color: white;
     display: flex;
     align-items: center;
-    gap: 4px;
-    backdrop-filter: blur(10px);
+    gap: 5px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); // 增强阴影
+    text-transform: uppercase; // 文本大写
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255, 255, 255, 0.15); // 添加细微边框
+
+    .q-icon {
+      font-size: 14px; // 调整图标大小
+    }
   }
 
   .play-overlay {
     opacity: 0;
-    background: rgba(0, 0, 0, 0.3);
-    transition: opacity 0.3s ease;
+    background: rgba(0, 0, 0, 0.4); // 稍微调暗叠加层
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     .play-button {
-      backdrop-filter: blur(10px);
-      background: rgba(255, 255, 255, 0.2);
+      background: linear-gradient(135deg, #ff69b4, #c77dff); // lazer 粉紫渐变
+      color: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); // 使用 cubic-bezier
+
+      &:hover {
+        transform: scale(1.12); // 稍微增大悬停缩放
+        box-shadow: 0 7px 18px rgba(0, 0, 0, 0.45); // 增强阴影
+        background: linear-gradient(135deg, #ff7cc0, #d28eff); // 悬停时颜色变亮
+      }
+
+      &:active {
+        transform: scale(1.05); // 点击时缩小反馈
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+      }
     }
   }
 }
 
 .card-content {
   padding: 16px;
+  background-color: rgba(20, 20, 23, 0.5); // 内容区域的深色背景
 
   .playlist-name {
-    font-size: 16px;
+    font-size: 1.1rem; // 调整字体大小
     font-weight: 600;
-    color: white;
-    line-height: 1.3;
+    color: #f0f0f0; // 亮白色
+    line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); // 轻微文本阴影
   }
 
   .playlist-description {
-    font-size: 14px;
-    line-height: 1.2;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #a0a0a0; // 柔和的灰色
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    min-height: calc(1.4em * 2); // 确保描述区域至少有两行的高度
   }
 
   .stats-row {
     display: flex;
     gap: 16px;
     align-items: center;
+    color: #b0b0b0; // 统计信息文本颜色
+    font-size: 0.75rem;
 
     .stat-item {
       display: flex;
       align-items: center;
-      gap: 4px;
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 12px;
+      gap: 6px; // 调整图标和文本间距
 
       .q-icon {
-        opacity: 0.7;
+        opacity: 0.8;
+        font-size: 14px;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)); // 添加阴影
       }
 
       .stat-value {
@@ -271,35 +272,67 @@ const formatUpdateTime = (dateString: string): string => {
     }
   }
 
-  .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
-
-    .tag-chip {
-      border-radius: 6px;
-      font-size: 10px;
-      font-weight: 600;
-    }
-  }
-
   .updated-time {
     .text-caption {
       display: flex;
       align-items: center;
-      font-size: 11px;
+      font-size: 0.7rem;
+      color: #808080; // 更新时间文本颜色
+      margin-top: 8px;
+
+      .q-icon {
+        font-size: 12px;
+        margin-right: 4px;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)); // 添加阴影
+      }
     }
   }
 }
 
 .card-actions {
-  padding: 8px 16px 16px;
-  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 16px; // 调整内边距
+  background: rgba(20, 20, 23, 0.7); // 与内容区域背景协调或略深
+  border-top: 1px solid rgba(255, 255, 255, 0.08); // 细微的顶部边框
 
   .q-btn {
-    font-size: 12px;
-    padding: 4px 12px;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-transform: none;
+    font-weight: 500;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); // 使用 cubic-bezier
+
+    &[color="primary"] {
+      color: #ff69b4;
+      background: transparent;
+
+      &:hover {
+        background: rgba(255, 105, 180, 0.15); // 悬停背景更明显
+        color: #ff55a8;
+        transform: translateY(-1px); // 轻微上移
+      }
+
+      &:active {
+        background: rgba(255, 105, 180, 0.2);
+        transform: translateY(0px);
+      }
+    }
+
+    &[color="negative"] {
+      color: #ff7675;
+      background: transparent;
+
+      &:hover {
+        background: rgba(255, 118, 117, 0.15);
+        color: #ff6363;
+        transform: translateY(-1px);
+      }
+
+      &:active {
+        background: rgba(255, 118, 117, 0.2);
+        transform: translateY(0px);
+      }
+    }
   }
 }
 

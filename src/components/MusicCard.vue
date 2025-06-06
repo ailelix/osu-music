@@ -4,22 +4,10 @@
       <!-- 封面图片 -->
       <div class="cover-section">
         <div class="cover-image-container">
-          <img
-            :src="smartCoverUrl"
-            :alt="track.title"
-            class="cover-image"
-            @error="onImageError"
-            draggable="false"
-          />
+          <img :src="smartCoverUrl" :alt="track.title" class="cover-image" @error="onImageError" draggable="false" />
           <div class="play-overlay">
-            <q-btn
-              round
-              color="primary"
-              icon="play_arrow"
-              size="md"
-              @click.stop="$emit('play', track)"
-              class="play-button"
-            />
+            <q-btn round color="primary" icon="play_arrow" size="md" @click.stop="$emit('play', track)"
+              class="play-button" />
           </div>
         </div>
       </div>
@@ -40,38 +28,55 @@
           <div class="duration text-caption text-grey-6">
             {{ formatDuration(track.duration) }}
           </div>
-          <div class="actions">
-            <q-btn
-              flat
-              round
-              size="sm"
-              icon="more_vert"
-              color="grey-6"
-              @click.stop="$emit('menu', track)"
-            >
+          <div class="actions row items-center">
+            <!-- 快速收藏按钮 -->
+            <q-btn flat round size="sm" :icon="isInFavorites ? 'favorite' : 'favorite_border'"
+              :color="isInFavorites ? 'pink' : 'grey-6'" @click.stop="toggleFavorite" :loading="isAddingToFavorites"
+              class="q-mr-xs">
+              <q-tooltip>{{ isInFavorites ? 'Remove from Favorites' : 'Add to Favorites' }}</q-tooltip>
+            </q-btn>
+
+            <!-- 快速添加到播放列表按钮 -->
+            <q-btn flat round size="sm" icon="playlist_add" color="grey-6" @click.stop="openAddToPlaylistDialog"
+              class="q-mr-xs">
+              <q-tooltip>Add to Playlist</q-tooltip>
+            </q-btn>
+
+            <!-- 更多选项菜单 (REMOVED) -->
+            <!--
+            <q-btn flat round size="sm" icon="more_vert" color="grey-6" @click.stop="$emit('menu', track)">
               <q-menu>
                 <q-list dense style="min-width: 150px">
                   <q-item clickable @click="$emit('play', track)">
                     <q-item-section avatar>
                       <q-icon name="play_arrow" />
                     </q-item-section>
-                    <q-item-section>Play</q-item-section>
+                    <q-item-section>Play Now</q-item-section>
                   </q-item>
-                  <q-item clickable @click="$emit('addToPlaylist', track)">
+                  <q-separator />
+                  <q-item clickable @click="toggleFavorite">
+                    <q-item-section avatar>
+                      <q-icon :name="isInFavorites ? 'favorite' : 'favorite_border'" />
+                    </q-item-section>
+                    <q-item-section>{{ isInFavorites ? 'Remove from Favorites' : 'Add to Favorites' }}</q-item-section>
+                  </q-item>
+                  <q-item clickable @click="openAddToPlaylistDialog">
                     <q-item-section avatar>
                       <q-icon name="playlist_add" />
                     </q-item-section>
                     <q-item-section>Add to Playlist</q-item-section>
                   </q-item>
+                  <q-separator />
                   <q-item clickable @click="$emit('showInfo', track)">
                     <q-item-section avatar>
                       <q-icon name="info" />
                     </q-item-section>
-                    <q-item-section>Info</q-item-section>
+                    <q-item-section>Track Info</q-item-section>
                   </q-item>
                 </q-list>
               </q-menu>
             </q-btn>
+            -->
           </div>
         </div>
       </div>
@@ -81,7 +86,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useQuasar } from 'quasar';
 import { type MusicTrack } from 'src/stores/musicStore';
+import { usePlaylistStore, type PlaylistTrack } from 'src/stores/playlistStore';
+import AddToPlaylistDialog from './AddToPlaylistDialog.vue';
 
 // Props
 const props = defineProps<{
@@ -92,10 +100,17 @@ const props = defineProps<{
 defineEmits<{
   click: [track: MusicTrack];
   play: [track: MusicTrack];
-  menu: [track: MusicTrack];
+  // menu: [track: MusicTrack]; // Removed
   addToPlaylist: [track: MusicTrack];
   showInfo: [track: MusicTrack];
 }>();
+
+// Composables
+const $q = useQuasar();
+const playlistStore = usePlaylistStore();
+
+// State
+const isAddingToFavorites = ref(false);
 
 // 使用 osu! ppy 的默认封面
 const defaultCover = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg.png';
@@ -114,6 +129,13 @@ const smartCoverUrl = computed(() => {
 
   // 使用默认封面
   return defaultCover;
+});
+
+// 检查是否在收藏夹中
+const isInFavorites = computed(() => {
+  const favPlaylist = playlistStore.defaultPlaylist;
+  if (!favPlaylist) return false;
+  return favPlaylist.tracks.some(t => t.beatmapsetId === Number(props.track.id));
 });
 
 const coverSrc = ref(smartCoverUrl.value);
@@ -145,6 +167,71 @@ const onImageError = (event: Event) => {
     img.src = defaultCover;
     coverSrc.value = defaultCover;
   }
+};
+
+// 转换为播放列表歌曲格式
+const convertToPlaylistTrack = (track: MusicTrack): Omit<PlaylistTrack, 'addedAt'> => {
+  return {
+    beatmapsetId: Number(track.id) || 0,
+    title: track.title,
+    artist: track.artist || 'Unknown Artist',
+    duration: track.duration || 0,
+    bpm: 120, // 默认 BPM，因为 MusicTrack 中没有这个字段
+  };
+};
+
+// 切换收藏状态
+const toggleFavorite = async () => {
+  const favPlaylist = playlistStore.defaultPlaylist;
+  if (!favPlaylist) {
+    $q.notify({
+      type: 'negative',
+      message: 'Favorites playlist not found',
+      position: 'top',
+    });
+    return;
+  }
+
+  isAddingToFavorites.value = true;
+  try {
+    if (isInFavorites.value) {
+      // 从收藏夹移除
+      await playlistStore.removeTrackFromPlaylist(favPlaylist.id, Number(props.track.id));
+      $q.notify({
+        type: 'info',
+        message: 'Removed from Favorites',
+        position: 'top',
+      });
+    } else {
+      // 添加到收藏夹
+      const playlistTrack = convertToPlaylistTrack(props.track);
+      await playlistStore.addTrackToPlaylist(favPlaylist.id, playlistTrack);
+      $q.notify({
+        type: 'positive',
+        message: 'Added to Favorites!',
+        position: 'top',
+      });
+    }
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+    $q.notify({
+      type: 'negative',
+      message: error instanceof Error ? error.message : 'Failed to update favorites',
+      position: 'top',
+    });
+  } finally {
+    isAddingToFavorites.value = false;
+  }
+};
+
+// 打开添加到播放列表对话框
+const openAddToPlaylistDialog = () => {
+  $q.dialog({
+    component: AddToPlaylistDialog,
+    componentProps: {
+      track: props.track,
+    },
+  });
 };
 
 // 格式化时长
@@ -193,8 +280,11 @@ const formatDuration = (seconds?: number): string => {
       position: relative;
       width: 100%;
       height: 100%;
+      display: block; // Ensure block display
+      overflow: hidden; // Add overflow hidden here as well
 
       .cover-image {
+        display: block; // Ensure block display for the image itself
         width: 100%;
         height: 100%;
         object-fit: cover; // 保证图片完全填充且不留空白

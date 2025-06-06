@@ -1,8 +1,6 @@
 <template>
   <Transition name="mini-player" appear>
-    <div v-if="shouldShowMiniPlayer" class="mini-player-container"
-      :class="{ 'is-minimized': isMinimized, 'is-transitioning': isTransitioning }"
-      :style="isMinimized ? { left: minimizedPlayerTargetCenterLeft } : {}">
+    <div v-if="shouldShowMiniPlayer" class="mini-player-container" :class="{ 'is-minimized': isMinimized }">
       <div class="mini-player" :class="{ 'is-minimized': isMinimized }">
         <!-- 背景模糊层 -->
         <div class="background-blur" :style="backgroundStyle"></div>
@@ -84,17 +82,6 @@ const musicStore = useMusicStore();
 
 // 最小化状态
 const isMinimized = ref(false);
-const isTransitioning = ref(false);
-
-// 计算最小化时播放器目标中心点的 left 值
-const minimizedPlayerTargetCenterLeft = computed(() => {
-  // 对于大屏幕：容器max-width: 800px，通过 left: 50%; transform: translateX(-50%) 居中。
-  // 容器左边缘距离视口: 50% - 400px。
-  // 展开时，封面中心点距离容器左边缘: 20px (padding-left) + 25px (封面半径) = 45px。
-  // 所以，最小化播放器应该居中的目标位置 (CSS left): calc(50% - 400px + 45px)。
-  // transform: translateX(-50%) 会基于新的60px宽度将其正确居中。
-  return 'calc(50% - 400px + 45px)';
-});
 
 // 本地音量状态
 const localVolume = ref(Math.round(musicStore.volume * 100));
@@ -137,24 +124,8 @@ const backgroundStyle = computed(() => {
 });
 
 // 方法
-const toggleMinimize = async () => {
-  if (isTransitioning.value) return; // 防止重复触发
-
-  isTransitioning.value = true; // 开始过渡，CSS将处理透明度变化（0.15秒内变为0.3）
-
-  // 延迟A: 150毫秒。此时，播放器应已淡化到0.3透明度。
-  setTimeout(() => {
-    isMinimized.value = !isMinimized.value; // 切换最小化状态，触发位置/尺寸动画（持续0.4秒）
-    // 位置/尺寸动画在 150ms + 400ms = 550ms 时完成。
-
-    // 延迟B: 我们希望播放器在550ms时完全恢复不透明。
-    // 透明度从0.3恢复到1.0的过渡需要0.15秒（150毫秒）。
-    // 因此，isTransitioning.value = false 应在 550ms - 150ms = 400ms 时调用。
-    // 此setTimeout是相对于延迟A（150ms）的，所以延时为 400ms - 150ms = 250ms。
-    setTimeout(() => {
-      isTransitioning.value = false; // 结束过渡，CSS将处理透明度恢复（0.15秒内变为1.0）
-    }, 250); // 从100毫秒调整为250毫秒
-  }, 150);
+const toggleMinimize = () => {
+  isMinimized.value = !isMinimized.value;
 };
 
 const handleContentClick = () => {
@@ -240,36 +211,14 @@ const onVolumeChange = (value: number | null) => {
   width: calc(100% - 40px);
   max-width: 800px;
   pointer-events: none;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease-in-out;
-
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
   &.is-minimized {
     bottom: 20px;
-    /* left将通过内联样式动态设置 */
+    right: 20px;
+    left: auto;
     transform: none;
-    width: 60px;
-    height: 60px;
-  }
-
-  &.is-transitioning {
-    opacity: 0.3;
-    /* Dim the player during transition to mask jumps */
-    // The existing transition properties on .mini-player-container will apply to this opacity change.
-    // transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease-in-out;
-
-    &:hover {
-      transform: none !important;
-      /* 过渡期间禁用hover效果 */
-    }
-
-    .mini-player {
-      &:hover {
-        transform: none !important;
-        box-shadow:
-          0 8px 32px rgba(0, 0, 0, 0.4),
-          0 0 0 1px rgba(255, 255, 255, 0.05),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1)
-      }
-    }
+    width: auto;
   }
 }
 
@@ -281,15 +230,11 @@ const onVolumeChange = (value: number | null) => {
   transform: translateY(-50%);
   z-index: 1001;
   pointer-events: all;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .is-minimized .minimize-btn-container {
-  right: -36px;
-  /* 距离mini player容器外部向右4px */
-  top: 50%;
-  transform: translateY(-50%);
-  transition: all 0.2s ease-in-out;
+  right: -45px;
 }
 
 .minimize-btn {
@@ -299,8 +244,8 @@ const onVolumeChange = (value: number | null) => {
   transition: all 0.3s ease;
   pointer-events: auto;
   visibility: visible;
-  /* 确保按钮始终可见 */
   opacity: 1;
+  z-index: 1001;
 
   &:hover {
     background: rgba(0, 0, 0, 0.6);
@@ -338,46 +283,40 @@ const onVolumeChange = (value: number | null) => {
     height: 60px;
     border-radius: 50%;
     padding: 0;
+    right: 20px;
+    bottom: 20px;
+    left: auto;
     margin: 0;
+    transform: translateX(0);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.2s ease-in-out;
 
     .mini-player-content {
       padding: 5px;
       justify-content: center;
-      align-items: center;
-      width: 100%;
-      height: 100%;
-      position: relative;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .rotating-cover-container {
-      position: absolute;
       width: 50px;
       height: 50px;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
       margin: 0;
       z-index: 1;
-      /* 封面设为底层 */
-      transition: all 0.2s ease-in-out;
+      /* 封面设为较低层级 */
     }
 
     &:hover {
       transform: scale(1.05);
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
     }
 
     .track-section,
     .volume-section,
     .osu-decorations {
       opacity: 0;
-      transform: scale(0.8) translateY(10px);
+      transform: scale(0.85);
       pointer-events: none;
       visibility: hidden;
-      transition: all 0.2s ease-in-out;
+      transition: all 0.3s ease;
     }
 
     .control-section {
@@ -385,37 +324,23 @@ const onVolumeChange = (value: number | null) => {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      opacity: 0.9;
-      transition: all 0.2s ease-in-out;
+      opacity: 0.8;
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 2;
-      /* 控制按钮设为上层，形成同心圆 */
+      /* 控制按钮设为较高层级，在封面上层 */
 
       &:hover {
         opacity: 1;
-        transform: translate(-50%, -50%) scale(1.05);
       }
 
       .control-btn {
-        opacity: 0;
-        transform: scale(0.8);
-        pointer-events: none;
-        visibility: hidden;
-        transition: all 0.2s ease-in-out;
+        display: none;
       }
 
       .play-btn {
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(8px);
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        width: 40px;
-        height: 40px;
-        transition: all 0.2s ease-in-out;
-
-        &:hover {
-          background: rgba(0, 0, 0, 0.6);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-        }
+        background: rgba(0, 0, 0, 0.3);
+        /* 半透明背景 */
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
       }
     }
   }
@@ -447,7 +372,7 @@ const onVolumeChange = (value: number | null) => {
   width: 50px;
   height: 50px;
   flex-shrink: 0;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .rotating-cover {
@@ -505,7 +430,7 @@ const onVolumeChange = (value: number | null) => {
   flex: 1;
   min-width: 0;
   margin-right: 12px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
 }
 
 .track-info {
@@ -559,10 +484,8 @@ const onVolumeChange = (value: number | null) => {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
-
 
 .play-btn {
   color: white;
@@ -593,7 +516,7 @@ const onVolumeChange = (value: number | null) => {
   flex-shrink: 0;
   position: relative;
   z-index: 10;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
 }
 
 .volume-slider-popup {
@@ -628,25 +551,6 @@ const onVolumeChange = (value: number | null) => {
   opacity: 1;
 }
 
-.minimize-btn {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  pointer-events: auto;
-  /* 确保按钮始终可点击 */
-  visibility: visible;
-  /* 确保按钮始终可见 */
-  opacity: 1;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-  }
-}
-
-
-
 .osu-decorations {
   position: absolute;
   top: 0;
@@ -655,7 +559,7 @@ const onVolumeChange = (value: number | null) => {
   height: 100%;
   pointer-events: none;
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
 }
 
 .osu-circle {
@@ -698,7 +602,6 @@ const onVolumeChange = (value: number | null) => {
 }
 
 @keyframes gradient-shift {
-
   0%,
   100% {
     background-position: 0% 50%;
@@ -710,7 +613,6 @@ const onVolumeChange = (value: number | null) => {
 }
 
 @keyframes osu-pulse {
-
   0%,
   100% {
     transform: scale(1);
@@ -739,17 +641,18 @@ const onVolumeChange = (value: number | null) => {
   transform: translateX(-50%) translateY(20px) scale(0.95);
 }
 
+// 最小化状态过渡动画
+.is-minimized .mini-player-enter-from,
+.is-minimized .mini-player-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
 // 响应式设计
 @media (max-width: 768px) {
   .mini-player-container {
     bottom: 15px;
     width: calc(100% - 20px);
-
-    &.is-minimized {
-      /* Small screen cover center X: 10px (container left edge relative to viewport) + 16px (content padding-left) + 22.5px (cover radius) */
-      /* This 'left' value should be the target center, as transform: translateX(-50%) will handle centering the 60px element. */
-      left: calc(10px + 16px + 22.5px) !important;
-    }
   }
 
   .mini-player-content {
