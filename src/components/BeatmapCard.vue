@@ -2,8 +2,15 @@
   <q-card class="beatmap-card cursor-pointer" @click="$emit('click')" flat bordered>
     <!-- 封面图片 -->
     <div class="card-image-container">
-      <q-img :src="coverImage" :alt="`${beatmapset.title} cover`" class="card-image" fit="cover" :ratio="1.8"
-        @error="onImageError" style="object-fit: cover; object-position: center; background: #222">
+      <q-img
+        :src="coverImage"
+        :alt="`${beatmapset.title} cover`"
+        class="card-image"
+        fit="cover"
+        :ratio="1.8"
+        @error="onImageError"
+        style="object-fit: cover; object-position: center; background: #222"
+      >
         <template #loading>
           <div class="absolute-full flex flex-center">
             <q-spinner color="white" size="2em" />
@@ -18,8 +25,15 @@
 
       <!-- 播放按钮叠加层 -->
       <div class="play-overlay absolute-full flex flex-center">
-        <q-btn fab :color="isCurrentlyPlaying ? 'secondary' : 'primary'" :icon="getPlayButtonIcon" size="md"
-          class="play-button" :loading="isCurrentlyLoading" @click.stop="playPreview" />
+        <q-btn
+          fab
+          :color="isCurrentlyPlaying ? 'secondary' : 'primary'"
+          :icon="getPlayButtonIcon"
+          size="md"
+          class="play-button"
+          :loading="isCurrentlyLoading"
+          @click.stop="playPreview"
+        />
       </div>
     </div>
 
@@ -64,9 +78,15 @@
       <!-- 难度信息 -->
       <div class="difficulties q-mt-sm">
         <div class="difficulty-chips">
-          <q-chip v-for="beatmap in sortedBeatmaps" :key="beatmap.id"
-            :color="getDifficultyColor(beatmap.difficulty_rating)" text-color="white" size="sm" dense
-            class="difficulty-chip">
+          <q-chip
+            v-for="beatmap in sortedBeatmaps"
+            :key="beatmap.id"
+            :color="getDifficultyColor(beatmap.difficulty_rating)"
+            text-color="white"
+            size="sm"
+            dense
+            class="difficulty-chip"
+          >
             <q-icon :name="getModeIcon(beatmap.mode)" size="12px" class="q-mr-xs" />
             {{ beatmap.difficulty_rating.toFixed(2) }}★
           </q-chip>
@@ -79,41 +99,73 @@
       <!-- 左侧：收藏和播放列表按钮 -->
       <div class="left-actions row items-center">
         <!-- 收藏按钮 -->
-        <q-btn flat round size="sm" :icon="isInFavorites ? 'favorite' : 'favorite_border'"
-          :color="isInFavorites ? 'pink' : 'grey-6'" @click.stop="toggleFavorite" :loading="isAddingToFavorites">
+        <q-btn
+          flat
+          round
+          size="sm"
+          :icon="isInFavorites ? 'favorite' : 'favorite_border'"
+          :color="isInFavorites ? 'pink' : 'grey-6'"
+          @click.stop="toggleFavorite"
+          :loading="isAddingToFavorites"
+        >
           <q-tooltip>{{ isInFavorites ? 'Remove from Favorites' : 'Add to Favorites' }}</q-tooltip>
         </q-btn>
 
         <!-- 添加到播放列表按钮 -->
-        <q-btn flat round size="sm" icon="playlist_add" color="grey-6" @click.stop="openAddToPlaylistDialog"
-          class="q-ml-xs">
+        <q-btn
+          flat
+          round
+          size="sm"
+          icon="playlist_add"
+          color="grey-6"
+          @click.stop="openAddToPlaylistDialog"
+          class="q-ml-xs"
+        >
           <q-tooltip>Add to Playlist</q-tooltip>
         </q-btn>
       </div>
 
       <!-- 右侧：查看和下载按钮 -->
       <div class="right-actions row items-center">
-        <q-btn flat color="primary" icon="open_in_new" label="View" size="sm" @click.stop="openInBrowser"
-          class="q-mr-sm" />
+        <q-btn
+          flat
+          color="primary"
+          icon="open_in_new"
+          label="View"
+          size="sm"
+          @click.stop="openInBrowser"
+          class="q-mr-sm"
+        />
 
         <!-- 下载按钮和进度 -->
         <div class="download-section">
           <!-- 下载进度条 -->
           <div v-if="downloadProgress" class="download-progress-mini q-mb-xs">
-            <q-linear-progress :value="downloadProgress.progress / 100" color="secondary" size="2px" />
+            <q-linear-progress
+              :value="downloadProgress.progress / 100"
+              color="secondary"
+              size="2px"
+            />
           </div>
 
-          <q-btn flat :color="downloadProgress?.status === 'completed'
-            ? 'positive'
-            : downloadProgress?.status === 'error'
-              ? 'negative'
-              : 'secondary'
-            " :icon="downloadProgress?.status === 'completed'
-              ? 'check_circle'
-              : downloadProgress?.status === 'error'
-                ? 'error'
-                : 'download'
-              " :label="downloadProgress?.status === 'completed'
+          <q-btn
+            flat
+            :color="
+              downloadProgress?.status === 'completed'
+                ? 'positive'
+                : downloadProgress?.status === 'error'
+                  ? 'negative'
+                  : 'secondary'
+            "
+            :icon="
+              downloadProgress?.status === 'completed'
+                ? 'check_circle'
+                : downloadProgress?.status === 'error'
+                  ? 'error'
+                  : 'download'
+            "
+            :label="
+              downloadProgress?.status === 'completed'
                 ? 'Downloaded'
                 : downloadProgress?.status === 'downloading'
                   ? 'Downloading...'
@@ -122,8 +174,15 @@
                     : downloadProgress?.status === 'error'
                       ? 'Failed'
                       : 'Download'
-                " size="sm" :loading="downloadProgress?.status === 'downloading' || downloadProgress?.status === 'extracting'
-                " :disable="downloadProgress?.status === 'completed'" @click.stop="downloadBeatmap">
+            "
+            size="sm"
+            :loading="
+              downloadProgress?.status === 'downloading' ||
+              downloadProgress?.status === 'extracting'
+            "
+            :disable="downloadProgress?.status === 'completed'"
+            @click.stop="downloadBeatmap"
+          >
             <q-tooltip v-if="!downloadProgress || downloadProgress.status === 'error'">
               Download audio files (MP3/OGG/FLAC formats, sound effects excluded)
             </q-tooltip>
@@ -301,7 +360,7 @@ const isAddingToFavorites = ref(false);
 const isInFavorites = computed(() => {
   const favPlaylist = playlistStore.defaultPlaylist;
   if (!favPlaylist) return false;
-  return favPlaylist.tracks.some(t => t.beatmapsetId === props.beatmapset.id);
+  return favPlaylist.tracks.some((t) => t.beatmapsetId === props.beatmapset.id);
 });
 
 // 转换为播放列表轨道格式
@@ -311,7 +370,7 @@ const convertToPlaylistTrack = (): Omit<PlaylistTrack, 'addedAt'> => {
     title: displayTitle.value,
     artist: displayArtist.value,
     duration: props.beatmapset.beatmaps[0]?.total_length || 0,
-    bpm: props.beatmapset.bpm
+    bpm: props.beatmapset.bpm,
   };
 };
 
@@ -324,7 +383,7 @@ const convertToMusicTrack = () => {
     album: props.beatmapset.source || 'osu! Beatmap',
     duration: props.beatmapset.beatmaps[0]?.total_length || 0,
     bpm: props.beatmapset.bpm,
-    coverUrl: coverImage.value
+    coverUrl: coverImage.value,
   };
 };
 
@@ -336,7 +395,7 @@ const toggleFavorite = async () => {
       message: 'Favorites playlist not found',
       icon: 'error',
       color: 'negative',
-      timeout: 3000
+      timeout: 3000,
     });
     return;
   }
@@ -353,7 +412,7 @@ const toggleFavorite = async () => {
         message: 'Removed from Favorites',
         icon: 'favorite_border',
         color: 'info',
-        timeout: 2000
+        timeout: 2000,
       });
     } else {
       // 添加到收藏夹
@@ -363,7 +422,7 @@ const toggleFavorite = async () => {
         message: 'Added to Favorites',
         icon: 'favorite',
         color: 'pink',
-        timeout: 2000
+        timeout: 2000,
       });
     }
   } catch (error) {
@@ -372,7 +431,7 @@ const toggleFavorite = async () => {
       message: error instanceof Error ? error.message : 'Failed to update favorites',
       icon: 'error',
       color: 'negative',
-      timeout: 3000
+      timeout: 3000,
     });
   } finally {
     isAddingToFavorites.value = false;
@@ -386,8 +445,8 @@ const openAddToPlaylistDialog = () => {
   $q.dialog({
     component: AddToPlaylistDialog,
     componentProps: {
-      track: musicTrack
-    }
+      track: musicTrack,
+    },
   });
 };
 

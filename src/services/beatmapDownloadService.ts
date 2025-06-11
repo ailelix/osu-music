@@ -242,7 +242,9 @@ class BeatmapDownloadService {
       }
 
       if (savedTracks.length === 0) {
-        throw new Error('No audio files found in beatmap (MP3/OGG/FLAC formats supported, WAV sound effects are excluded)');
+        throw new Error(
+          'No audio files found in beatmap (MP3/OGG/FLAC formats supported, WAV sound effects are excluded)',
+        );
       }
 
       // 更新音乐库

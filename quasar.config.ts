@@ -201,7 +201,8 @@ export default configure((ctx) => {
       preloadScripts: ['electron-preload'],
 
       // specify the debugging port to use for the Electron app when running in development mode
-      inspectPort: 5858,
+      // 使用动态端口避免冲突，Windows 下更稳定
+      inspectPort: ctx.dev ? (process.platform === 'win32' ? 0 : 5858) : 5858,
 
       bundler: 'packager', // 'packager' or 'builder'
 

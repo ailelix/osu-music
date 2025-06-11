@@ -9,6 +9,29 @@ import type { AxiosError } from 'axios'; // 新增: 用于主进程 token 交换
 import fs from 'fs/promises'; // 新增: 用于文件系统操作
 import * as mm from 'music-metadata'; // 新增: 音频元数据读取
 
+// Windows 调试优化配置
+if (process.platform === 'win32' && process.env.NODE_ENV === 'development') {
+  // 禁用 GPU 硬件加速以避免 Windows 下的渲染问题
+  app.disableHardwareAcceleration();
+
+  // 设置更友好的错误处理
+  process.on('uncaughtException', (error) => {
+    console.error('🔥 [Windows Debug] Uncaught Exception:', error);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('🔥 [Windows Debug] Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+
+  // 禁用安全警告在开发环境
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = '1';
+
+  console.log('🔧 [Windows Debug] Optimization enabled');
+  console.log('🔧 [Windows Debug] Platform:', process.platform, process.arch);
+  console.log('🔧 [Windows Debug] Node.js:', process.version);
+  console.log('🔧 [Windows Debug] Electron:', process.versions.electron);
+}
+
 /**
  * 跨平台路径工具函数
  * 获取统一的音乐存储目录路径
@@ -216,13 +239,12 @@ async function createWindow() {
   /**
    * Initial window options
    */
-  mainWindow = new BrowserWindow({
+  const windowOptions: Electron.BrowserWindowConstructorOptions = {
     icon: path.resolve(currentDir, 'icons/icon.png'), // tray icon
     width: 1200,
     height: 800,
     useContentSize: true,
     frame: false, // 创建无边框窗口 - 这会完全隐藏标题栏和红绿灯按钮
-    // 移除 titleBarStyle 因为 frame: false 已经处理了一切
     webPreferences: {
       contextIsolation: true,
       webSecurity: false, // 禁用 web 安全限制，允许加载本地文件
@@ -235,7 +257,25 @@ async function createWindow() {
         ),
       ),
     },
-  });
+  };
+
+  // Windows 特定优化
+  if (process.platform === 'win32') {
+    // Windows 下启用更好的字体渲染
+    windowOptions.webPreferences = {
+      ...windowOptions.webPreferences,
+      // 禁用节点集成以提高安全性和稳定性
+      nodeIntegration: false,
+      // 启用实验性功能以改善性能
+      experimentalFeatures: true,
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔧 [Windows Debug] Applied Windows-specific optimizations');
+    }
+  }
+
+  mainWindow = new BrowserWindow(windowOptions);
 
   if (process.env.DEV) {
     await mainWindow.loadURL(process.env.APP_URL);
@@ -246,6 +286,19 @@ async function createWindow() {
   if (process.env.DEBUGGING) {
     // if on DEV or Production with debug enabled
     mainWindow.webContents.openDevTools();
+  } else if (process.env.NODE_ENV === 'development') {
+    // Windows 特定的调试优化
+    if (process.platform === 'win32') {
+      // 延迟打开开发者工具以避免初始化问题
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.openDevTools({ mode: 'detach' });
+          console.log('🔧 [Windows Debug] DevTools opened in detached mode');
+        }
+      }, 1500);
+    } else {
+      mainWindow.webContents.openDevTools();
+    }
   } else {
     // we're on production; no access to devtools pls
     mainWindow.webContents.on('devtools-opened', () => {
@@ -493,7 +546,8 @@ void app.whenReady().then(() => {
       if (!isValidBeatmapAudioFile(sanitizedFileName)) {
         return {
           success: false,
-          error: 'Invalid audio file type (only MP3, OGG, and FLAC files are supported for beatmap downloads)',
+          error:
+            'Invalid audio file type (only MP3, OGG, and FLAC files are supported for beatmap downloads)',
         };
       }
 
