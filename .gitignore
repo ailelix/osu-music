@@ -2,10 +2,15 @@
 .DS_Store
 .thumbs.db
 
+# Nix and direnv
+.direnv/
+result
+
 # Node.js dependencies
 node_modules
 package-lock.json
 yarn.lock
+.npm-global
 
 # Quasar core related directories
 .quasar
