@@ -20,6 +20,10 @@ interface ElectronWindowControlsApi {
   isFullScreen: () => Promise<boolean>;
   onEnterFullScreen: (listener: () => void) => () => void;
   onLeaveFullScreen: (listener: () => void) => () => void;
+  // 新增：自定义红绿灯按钮的窗口控制方法
+  closeWindow: () => Promise<void>;
+  minimizeWindow: () => Promise<void>;
+  toggleMaximize: () => Promise<void>;
 }
 
 interface ElectronApi {

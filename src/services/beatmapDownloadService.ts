@@ -5,7 +5,7 @@
  * 功能说明：
  * - 从多个镜像源下载 osu! beatmap 文件 (.osz)
  * - 解压缩并提取音频文件
- * - 只保留 MP3 格式的音乐文件，跳过 WAV 音效文件
+ * - 支持 MP3、OGG、FLAC 格式的音乐文件，跳过 WAV 音效文件
  * - 保存到统一的音乐存储路径
  * - 提供下载进度跟踪
  */
@@ -242,7 +242,7 @@ class BeatmapDownloadService {
       }
 
       if (savedTracks.length === 0) {
-        throw new Error('No MP3 audio files found in beatmap (WAV sound effects are excluded)');
+        throw new Error('No audio files found in beatmap (MP3/OGG/FLAC formats supported, WAV sound effects are excluded)');
       }
 
       // 更新音乐库
@@ -297,11 +297,11 @@ class BeatmapDownloadService {
 
       const audioFiles: AudioFileData[] = [];
 
-      // 只查找 MP3 音频文件，跳过 WAV 音效文件和其他格式
-      const audioExtensions = ['.mp3'];
+      // 支持常见的音频格式：MP3, OGG, FLAC，跳过 WAV 音效文件
+      const audioExtensions = ['.mp3', '.ogg', '.flac'];
 
       console.log(
-        `[BeatmapDownload] Scanning ZIP files for MP3 audio files (excluding WAV sound effects)...`,
+        `[BeatmapDownload] Scanning ZIP files for audio files (MP3/OGG/FLAC, excluding WAV sound effects)...`,
       );
       for (const [fileName, file] of Object.entries(zip.files)) {
         if (!file || file.dir) {
@@ -312,10 +312,10 @@ class BeatmapDownloadService {
         const lowerFileName = fileName.toLowerCase();
         const isAudioFile = audioExtensions.some((ext) => lowerFileName.endsWith(ext));
 
-        console.log(`[BeatmapDownload] Checking file: ${fileName} (is MP3: ${isAudioFile})`);
+        console.log(`[BeatmapDownload] Checking file: ${fileName} (is audio: ${isAudioFile})`);
 
         if (isAudioFile) {
-          console.log(`[BeatmapDownload] Extracting MP3 file: ${fileName}`);
+          console.log(`[BeatmapDownload] Extracting audio file: ${fileName}`);
           const arrayBuffer = await file.async('arraybuffer');
           console.log(
             `[BeatmapDownload] Extracted ${fileName}, size: ${arrayBuffer.byteLength} bytes`,
@@ -329,7 +329,7 @@ class BeatmapDownloadService {
         }
       }
 
-      console.log(`[BeatmapDownload] Found ${audioFiles.length} MP3 files`);
+      console.log(`[BeatmapDownload] Found ${audioFiles.length} audio files (MP3/OGG/FLAC)`);
 
       if (audioFiles.length === 0) {
         // 列出所有文件以便调试
@@ -338,7 +338,7 @@ class BeatmapDownloadService {
           return file && !file.dir;
         });
         console.warn(
-          `[BeatmapDownload] No MP3 files found (WAV sound effects excluded). All files in ZIP: ${allFiles.join(', ')}`,
+          `[BeatmapDownload] No audio files found (MP3/OGG/FLAC). WAV sound effects are excluded. All files in ZIP: ${allFiles.join(', ')}`,
         );
       }
 

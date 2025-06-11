@@ -15,7 +15,6 @@
       in
       {
         devShells.default = pkgs.mkShell {
-          name = "osu-music-dev";
           buildInputs = with pkgs; [
             # Node.js 独立环境
             nodejs_22
@@ -42,7 +41,7 @@
             # iOS 开发工具（如果需要 Capacitor iOS）
             # cocoapods
             
-            # 的工具
+            # 可选：其他有用的工具
             jq  # JSON 处理
             tree  # 目录树显示
           ];
@@ -91,14 +90,16 @@
               echo ""
             fi
             
-            # 设置 shell 环境，但不启动新的 shell（避免与 direnv 冲突）
-            export SHELL=${pkgs.zsh}/bin/zsh
-            
-            # 如果有系统 zsh 配置，加载它（但不启动新 shell）
-            if [ -f ~/.zshrc ]; then
-              # 注意：不要在这里 source，会导致冲突
-              echo "💡 提示：您可以手动运行 'source ~/.zshrc' 来加载系统 zsh 配置"
+            # 自动安装依赖（如果需要）
+            if [ ! -d "node_modules" ]; then
+              echo "📦 正在安装项目依赖..."
+              pnpm install
+              echo "✅ 项目依赖安装完成"
+              echo ""
             fi
+            
+            # 设置 shell 环境（不要使用 exec，这会导致 direnv 循环）
+            export SHELL=${pkgs.zsh}/bin/zsh
           '';
         };
       });

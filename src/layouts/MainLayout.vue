@@ -3,12 +3,17 @@
     <!-- Header -->
     <q-header class="main-header">
       <q-toolbar class="header-toolbar-content" :style="toolbarStyle">
-        <!-- Logo作为抽屉切换按钮 -->
-        <div class="header-logo-wrapper q-ml-xs" role="button" aria-label="Toggle Menu">
+        <!-- 所有平台都使用自定义红绿灯区域 -->
+        <div
+          class="logo-traffic-area q-ml-xs"
+          @mouseenter="handleLogoAreaEnter"
+          @mouseleave="handleLogoAreaLeave"
+        >
           <AppLogo :is-drawer-open="leftDrawerOpen" @toggle-drawer="toggleLeftDrawer" />
+          <CustomTrafficLights :isVisible="showTrafficLights" />
         </div>
 
-        <q-toolbar-title class="header-title draggable-area"> OSU! MUSIC </q-toolbar-title>
+        <q-toolbar-title class="header-title draggable-area"></q-toolbar-title>
 
         <q-btn
           dense
@@ -19,20 +24,6 @@
           @click="navigateToSearch"
           class="non-draggable-area"
         />
-
-        <!-- Windows/Linux 窗口控件 (如果需要) -->
-        <div v-if="!isOnMac && showWindowControls" class="window-controls non-draggable-area">
-          <q-btn dense flat round icon="remove" @click="minimizeWindow" size="sm" />
-          <q-btn
-            dense
-            flat
-            round
-            :icon="isMaximized ? 'filter_none' : 'crop_square'"
-            @click="toggleMaximizeWindow"
-            size="sm"
-          />
-          <q-btn dense flat round icon="close" @click="closeWindow" size="sm" class="btn-close" />
-        </div>
       </q-toolbar>
     </q-header>
 
@@ -55,27 +46,57 @@
 
 <script setup lang="ts">
 import type { CSSProperties } from 'vue';
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { isNavigationFailure, NavigationFailureType } from 'vue-router';
 import AppLogo from 'components/AppLogo.vue';
 import AppDrawer from 'components/AppDrawer.vue';
 import MiniPlayer from 'components/MiniPlayer.vue';
+import CustomTrafficLights from 'components/CustomTrafficLights.vue';
 
 const leftDrawerOpen = ref(false);
 const router = useRouter();
+const route = useRoute();
 const isOnMac = ref(false);
-const showWindowControls = ref(false); // 控制是否显示自定义的窗口控件
-const isMaximized = ref(false); // 追踪窗口是否最大化
 const isFullScreen = ref(false); // 新增：追踪全屏状态
-const MACOS_TRAFFIC_LIGHT_WIDTH = 78; // 红绿灯宽度估算值
+const showTrafficLights = ref(false); // 控制红绿灯显示
+
+// 监听路由变化，切换到 player 页面时自动收起抽屉
+watch(
+  () => route.name,
+  (newRouteName) => {
+    if (newRouteName === 'player' && leftDrawerOpen.value) {
+      leftDrawerOpen.value = false;
+    }
+  },
+  { immediate: true },
+);
 
 // 动态计算 toolbar 的样式
 const toolbarStyle = computed<CSSProperties>(() => {
-  if (isOnMac.value && !isFullScreen.value) {
-    return { paddingLeft: `${MACOS_TRAFFIC_LIGHT_WIDTH}px` };
+  const baseStyle: CSSProperties = { paddingLeft: '12px' };
+
+  // 如果在 PlayerPage 页面且抽屉收起，则让 header 透明
+  if (route.name === 'player' && !leftDrawerOpen.value) {
+    return {
+      ...baseStyle,
+      backgroundColor: 'transparent',
+      backdropFilter: 'none',
+      borderBottom: 'none',
+    };
   }
-  return { paddingLeft: '12px' };
+
+  // 如果在 PlayerPage 页面且抽屉展开，则显示半透明背景
+  if (route.name === 'player' && leftDrawerOpen.value) {
+    return {
+      ...baseStyle,
+      backgroundColor: 'rgba(31, 31, 39, 0.8)',
+      backdropFilter: 'blur(20px) saturate(180%)',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    };
+  }
+
+  return baseStyle;
 });
 
 let unlistenEnterFullScreen: (() => void) | undefined;
@@ -85,12 +106,8 @@ onMounted(async () => {
   if (window.electron?.process && window.electron.windowControls && window.electron.ipcRenderer) {
     const platform = window.electron.process.platform;
     isOnMac.value = platform === 'darwin';
-    showWindowControls.value = platform !== 'darwin';
     try {
       isFullScreen.value = await window.electron.windowControls.isFullScreen();
-      isMaximized.value = await window.electron.ipcRenderer.invoke<boolean>(
-        'get-initial-maximize-state',
-      );
     } catch (e) {
       console.error('Error getting initial window states:', e);
     }
@@ -100,10 +117,7 @@ onMounted(async () => {
     unlistenLeaveFullScreen = window.electron.windowControls.onLeaveFullScreen(() => {
       isFullScreen.value = false;
     });
-    window.electron.ipcRenderer.on('window-maximized', () => (isMaximized.value = true));
-    window.electron.ipcRenderer.on('window-unmaximized', () => (isMaximized.value = false));
   } else {
-    showWindowControls.value = false;
     isOnMac.value = false;
   }
 });
@@ -111,10 +125,6 @@ onMounted(async () => {
 onUnmounted(() => {
   if (unlistenEnterFullScreen) unlistenEnterFullScreen();
   if (unlistenLeaveFullScreen) unlistenLeaveFullScreen();
-  if (window.electron?.ipcRenderer) {
-    window.electron.ipcRenderer.removeAllListeners('window-maximized');
-    window.electron.ipcRenderer.removeAllListeners('window-unmaximized');
-  }
 });
 
 function toggleLeftDrawer() {
@@ -137,15 +147,13 @@ async function navigateToSearch() {
   }
 }
 
-// --- Electron 窗口控制函数 ---
-function minimizeWindow() {
-  window.electron?.ipcRenderer?.send('minimize-window');
+// 红绿灯区域鼠标事件处理（所有平台都启用）
+function handleLogoAreaEnter() {
+  showTrafficLights.value = true;
 }
-function toggleMaximizeWindow() {
-  window.electron?.ipcRenderer?.send('toggle-maximize-window');
-}
-function closeWindow() {
-  window.electron?.ipcRenderer?.send('close-window');
+
+function handleLogoAreaLeave() {
+  showTrafficLights.value = false;
 }
 </script>
 
@@ -183,13 +191,7 @@ $primary: #ff4081 !default; // 确保 $primary 已定义
     align-items: center; // 垂直居中
     width: 100%;
     padding-right: 12px; // 给右侧按钮一些空间
-  }
-
-  .macos-traffic-lights-spacer {
-    min-width: 70px; // 根据实际红绿灯宽度调整，通常 70-80px
-    height: 30px; // 根据红绿灯高度调整，或设为 toolbar 高度的一部分
-    -webkit-app-region: no-drag; // 这个区域不可拖动
-    // background-color: rgba(255,0,0,0.1); // 调试用：给占位符一个颜色看看范围
+    transition: all 0.3s ease; // 添加过渡动画
   }
 
   .header-logo-wrapper {
@@ -203,6 +205,23 @@ $primary: #ff4081 !default; // 确保 $primary 已定义
     margin-left: 0; // 确保在 toolbarStyle 应用的 padding-left 之后正确对齐
     &:hover {
       background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .logo-traffic-area {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 4px;
+    padding-right: 80px; // 为红绿灯区域预留空间
+    -webkit-app-region: no-drag; // 整个区域不可拖动，以便点击
+    margin-left: 0;
+    border-radius: 50px 20px 20px 50px; // 圆角设计，左侧更圆
+    position: relative;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
     }
   }
 
@@ -220,25 +239,6 @@ $primary: #ff4081 !default; // 确保 $primary 已定义
   .q-toolbar__title:not(.draggable-area),
   .header-logo-wrapper {
     -webkit-app-region: no-drag;
-  }
-
-  .window-controls {
-    display: flex;
-    margin-left: auto; // 将窗口控件推到最右边
-    -webkit-app-region: no-drag;
-    .q-btn {
-      min-width: 38px;
-      color: $header-text; // 确保按钮图标颜色
-      border-radius: 0;
-      padding: 0 8px; // 调整按钮内边距
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.15);
-      }
-      &.btn-close:hover {
-        background-color: #e81123;
-        color: white;
-      }
-    }
   }
 }
 

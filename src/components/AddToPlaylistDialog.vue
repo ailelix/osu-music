@@ -1,5 +1,10 @@
 <template>
-  <q-dialog ref="dialogRef" @hide="onDialogHide" persistent class="add-to-playlist-dialog-component">
+  <q-dialog
+    ref="dialogRef"
+    @hide="onDialogHide"
+    persistent
+    class="add-to-playlist-dialog-component"
+  >
     <q-card class="lazer-card">
       <!-- 头部 -->
       <q-card-section class="lazer-dialog-header row items-center q-pb-none">
@@ -20,7 +25,9 @@
           <img :src="trackCoverUrl" class="track-thumbnail q-mr-md" @error="onCoverError" />
           <div class="track-details ellipsis">
             <div class="track-title ellipsis">{{ track.title }}</div>
-            <div class="track-artist ellipsis text-lazer-secondary">{{ track.artist || 'Unknown Artist' }}</div>
+            <div class="track-artist ellipsis text-lazer-secondary">
+              {{ track.artist || 'Unknown Artist' }}
+            </div>
           </div>
         </div>
       </q-card-section>
@@ -30,15 +37,25 @@
       <!-- 播放列表选择 -->
       <q-card-section class="playlist-selection-section">
         <div class="text-subtitle1 q-mb-sm section-header">Your Playlists</div>
-        <q-scroll-area style="height: 200px; max-width: 100%;" class="lazer-scroll-area">
+        <q-scroll-area style="height: 200px; max-width: 100%" class="lazer-scroll-area">
           <q-list v-if="customPlaylists.length > 0" class="playlist-list">
-            <q-item v-for="playlist in customPlaylists" :key="playlist.id" clickable v-ripple
-              @click="togglePlaylistSelection(playlist.id)" class="lazer-list-item"
-              :class="{ 'lazer-list-item--selected': selectedPlaylists.includes(playlist.id) }">
+            <q-item
+              v-for="playlist in customPlaylists"
+              :key="playlist.id"
+              clickable
+              v-ripple
+              @click="togglePlaylistSelection(playlist.id)"
+              class="lazer-list-item"
+              :class="{ 'lazer-list-item--selected': selectedPlaylists.includes(playlist.id) }"
+            >
               <q-item-section avatar>
-                <q-checkbox :model-value="selectedPlaylists.includes(playlist.id)"
-                  @update:model-value="togglePlaylistSelection(playlist.id)" color="lazer-accent-pink"
-                  class="lazer-checkbox" dense />
+                <q-checkbox
+                  :model-value="selectedPlaylists.includes(playlist.id)"
+                  @update:model-value="togglePlaylistSelection(playlist.id)"
+                  color="lazer-accent-pink"
+                  class="lazer-checkbox"
+                  dense
+                />
               </q-item-section>
               <q-item-section>
                 <q-item-label class="ellipsis">{{ playlist.name }}</q-item-label>
@@ -47,8 +64,11 @@
                 </q-item-label>
               </q-item-section>
               <q-item-section side v-if="playlistContainsTrack(playlist.id)">
-                <q-icon name="check_circle" :color="selectedPlaylists.includes(playlist.id) ? 'white' : 'positive'"
-                  size="xs">
+                <q-icon
+                  name="check_circle"
+                  :color="selectedPlaylists.includes(playlist.id) ? 'white' : 'positive'"
+                  size="xs"
+                >
                   <q-tooltip class="lazer-tooltip">Already in this playlist</q-tooltip>
                 </q-icon>
               </q-item-section>
@@ -62,12 +82,22 @@
 
       <!-- 创建新播放列表 -->
       <q-card-section class="create-playlist-section">
-        <q-expansion-item icon="add_circle_outline" label="Create New Playlist" class="lazer-expansion-item"
-          header-class="lazer-expansion-header">
+        <q-expansion-item
+          icon="add_circle_outline"
+          label="Create New Playlist"
+          class="lazer-expansion-item"
+          header-class="lazer-expansion-header"
+        >
           <div class="q-pt-md">
-            <q-input v-model="newPlaylistName" label="Playlist Name" outlined dense class="lazer-input q-mb-sm"
+            <q-input
+              v-model="newPlaylistName"
+              label="Playlist Name"
+              outlined
+              dense
+              class="lazer-input q-mb-sm"
               @keyup.enter="handleCreateAndAddToPlaylist"
-              :rules="[val => !!val.trim() || 'Playlist name is required']" />
+              :rules="[(val) => !!val.trim() || 'Playlist name is required']"
+            />
             <!-- 可选的描述输入框 -->
             <!--
             <q-input
@@ -80,9 +110,15 @@
               class="lazer-input q-mb-md"
             />
             -->
-            <q-btn label="Create & Add Track" unelevated color="lazer-accent-pink"
-              class="full-width lazer-btn lazer-btn--primary" :loading="isCreatingPlaylist"
-              :disable="!newPlaylistName.trim()" @click="handleCreateAndAddToPlaylist" />
+            <q-btn
+              label="Create & Add Track"
+              unelevated
+              color="lazer-accent-pink"
+              class="full-width lazer-btn lazer-btn--primary"
+              :loading="isCreatingPlaylist"
+              :disable="!newPlaylistName.trim()"
+              @click="handleCreateAndAddToPlaylist"
+            />
           </div>
         </q-expansion-item>
       </q-card-section>
@@ -92,10 +128,18 @@
       <!-- 操作按钮 -->
       <q-card-actions class="lazer-dialog-actions justify-end">
         <q-btn flat label="Cancel" @click="onDialogHide" class="lazer-btn lazer-btn--flat" />
-        <q-btn label="Add to Selected" unelevated color="lazer-accent-purple" class="lazer-btn lazer-btn--primary"
+        <q-btn
+          label="Add to Selected"
+          unelevated
+          color="lazer-accent-purple"
+          class="lazer-btn lazer-btn--primary"
           :loading="isAddingToSelected"
-          :disable="selectedPlaylists.length === 0 && !(selectedPlaylists[0] && playlistContainsTrack(selectedPlaylists[0]))"
-          @click="handleAddToSelectedPlaylists" />
+          :disable="
+            selectedPlaylists.length === 0 &&
+            !(selectedPlaylists[0] && playlistContainsTrack(selectedPlaylists[0]))
+          "
+          @click="handleAddToSelectedPlaylists"
+        />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -124,7 +168,7 @@ const newPlaylistName = ref('');
 const isCreatingPlaylist = ref(false);
 const isAddingToSelected = ref(false);
 
-const customPlaylists = computed(() => playlistStore.customPlaylists.filter(p => !p.isDefault)); // 通常不直接添加到 "Favorites"
+const customPlaylists = computed(() => playlistStore.customPlaylists.filter((p) => !p.isDefault)); // 通常不直接添加到 "Favorites"
 
 const trackCoverUrl = computed(() => {
   if (props.track.coverUrl) return props.track.coverUrl;
@@ -152,7 +196,7 @@ const convertToPlaylistTrack = (trackData: MusicTrack): Omit<PlaylistTrack, 'add
 const playlistContainsTrack = (playlistId: string): boolean => {
   if (!playlistId) return false;
   const playlist = playlistStore.getPlaylistById(playlistId);
-  return playlist?.tracks.some(t => t.beatmapsetId === Number(props.track.id)) || false;
+  return playlist?.tracks.some((t) => t.beatmapsetId === Number(props.track.id)) || false;
 };
 
 const togglePlaylistSelection = (playlistId: string) => {
@@ -219,7 +263,8 @@ const handleAddToSelectedPlaylists = async () => {
     const playlistTrack = convertToPlaylistTrack(props.track);
     let successCount = 0;
     for (const playlistId of selectedPlaylists.value) {
-      if (!playlistContainsTrack(playlistId)) { // Double check, though toggle should prevent this
+      if (!playlistContainsTrack(playlistId)) {
+        // Double check, though toggle should prevent this
         try {
           await playlistStore.addTrackToPlaylist(playlistId, playlistTrack);
           successCount++;
@@ -237,7 +282,7 @@ const handleAddToSelectedPlaylists = async () => {
         textColor: 'white',
         position: 'top',
       });
-    } else if (selectedPlaylists.value.every(pid => playlistContainsTrack(pid))) {
+    } else if (selectedPlaylists.value.every((pid) => playlistContainsTrack(pid))) {
       $q.notify({
         type: 'info',
         message: `Track is already in all selected playlists.`,
@@ -253,7 +298,6 @@ const handleAddToSelectedPlaylists = async () => {
     hideLoading();
   }
 };
-
 </script>
 
 <style lang="scss" scoped>

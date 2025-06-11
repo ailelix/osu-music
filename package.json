@@ -12,6 +12,15 @@
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
     "build": "quasar build",
+    "build:electron": "quasar build -m electron",
+    "build:electron:win": "quasar build -m electron -T win32 --arch x64",
+    "build:electron:win-x64": "ELECTRON_BUILDER_ARCH=x64 quasar build -m electron -T win32",
+    "build:electron:mac": "quasar build -m electron -T darwin",
+    "build:electron:linux": "quasar build -m electron -T linux",
+    "build:electron:all": "npm run build:electron:win && npm run build:electron:mac && npm run build:electron:linux",
+    "electron:build:win": "npm run build:electron && electron-builder --win --x64",
+    "electron:build:mac": "npm run build:electron && electron-builder --mac",
+    "electron:build:linux": "npm run build:electron && electron-builder --linux",
     "postinstall": "quasar prepare"
   },
   "dependencies": {
@@ -47,6 +56,7 @@
     "@vue/eslint-config-typescript": "^14.4.0",
     "autoprefixer": "^10.4.2",
     "electron": "^36.3.1",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.14.0",
     "eslint-plugin-vue": "^9.30.0",
     "globals": "^15.12.0",

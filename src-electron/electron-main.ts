@@ -93,10 +93,10 @@ function isValidAudioFile(filename: string): boolean {
 }
 
 /**
- * 验证beatmap下载的音频文件类型（仅允许MP3）
+ * 验证beatmap下载的音频文件类型（支持MP3、OGG、FLAC）
  */
 function isValidBeatmapAudioFile(filename: string): boolean {
-  const allowedExtensions = ['.mp3']; // 只允许MP3，排除WAV音效文件
+  const allowedExtensions = ['.mp3', '.ogg', '.flac']; // 支持MP3、OGG、FLAC，排除WAV音效文件
   const extension = path.extname(filename).toLowerCase();
   return allowedExtensions.includes(extension);
 }
@@ -221,8 +221,8 @@ async function createWindow() {
     width: 1200,
     height: 800,
     useContentSize: true,
-    frame: false, // 创建无边框窗口
-    titleBarStyle: platform === 'darwin' ? 'hiddenInset' : 'hidden', // macOS 特殊处理
+    frame: false, // 创建无边框窗口 - 这会完全隐藏标题栏和红绿灯按钮
+    // 移除 titleBarStyle 因为 frame: false 已经处理了一切
     webPreferences: {
       contextIsolation: true,
       webSecurity: false, // 禁用 web 安全限制，允许加载本地文件
@@ -318,6 +318,33 @@ void app.whenReady().then(() => {
 
   ipcMain.handle('get-initial-maximize-state', () => {
     return mainWindow?.isMaximized() || false;
+  });
+
+  // 新增：自定义红绿灯按钮的窗口控制处理程序
+  ipcMain.handle('window:close', () => {
+    mainWindow?.close();
+  });
+
+  ipcMain.handle('window:minimize', () => {
+    mainWindow?.minimize();
+  });
+
+  ipcMain.handle('window:toggle-maximize', () => {
+    // 在 macOS 上，绿色按钮应该切换全屏模式
+    if (process.platform === 'darwin') {
+      if (mainWindow?.isFullScreen()) {
+        mainWindow.setFullScreen(false);
+      } else {
+        mainWindow?.setFullScreen(true);
+      }
+    } else {
+      // 在其他平台上，使用传统的最大化/还原
+      if (mainWindow?.isMaximized()) {
+        mainWindow.unmaximize();
+      } else {
+        mainWindow?.maximize();
+      }
+    }
   });
 
   // 监听窗口事件并通知渲染进程
@@ -466,7 +493,7 @@ void app.whenReady().then(() => {
       if (!isValidBeatmapAudioFile(sanitizedFileName)) {
         return {
           success: false,
-          error: 'Invalid audio file type (only MP3 files are supported for beatmap downloads)',
+          error: 'Invalid audio file type (only MP3, OGG, and FLAC files are supported for beatmap downloads)',
         };
       }
 

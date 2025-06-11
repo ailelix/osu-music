@@ -28,6 +28,10 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.on('leave-full-screen', handler);
       return () => ipcRenderer.removeListener('leave-full-screen', handler);
     },
+    // 新增：自定义红绿灯按钮的窗口控制方法
+    closeWindow: () => ipcRenderer.invoke('window:close'),
+    minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
   },
   // --- Settings Store IPC ---
   settingsStore: {

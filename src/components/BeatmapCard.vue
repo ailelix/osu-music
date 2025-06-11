@@ -125,7 +125,7 @@
                 " size="sm" :loading="downloadProgress?.status === 'downloading' || downloadProgress?.status === 'extracting'
                 " :disable="downloadProgress?.status === 'completed'" @click.stop="downloadBeatmap">
             <q-tooltip v-if="!downloadProgress || downloadProgress.status === 'error'">
-              Download MP3 music files (sound effects excluded)
+              Download audio files (MP3/OGG/FLAC formats, sound effects excluded)
             </q-tooltip>
           </q-btn>
         </div>

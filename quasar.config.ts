@@ -123,7 +123,7 @@ export default configure((ctx) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: ['Notify', 'Dialog', 'Loading'],
+      plugins: ['Notify', 'Dialog'],
     },
 
     // animations: 'all', // --- includes all animations
@@ -207,19 +207,131 @@ export default configure((ctx) => {
 
       packager: {
         // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
-        // OS X / Mac App Store
-        // appBundleId: '',
-        // appCategoryType: '',
-        // osxSign: '',
-        // protocol: 'myapp://path',
-        // Windows only
-        // win32metadata: { ... }
+
+        // 应用基本信息
+        name: 'osu-music',
+        appVersion: '0.0.1',
+
+        // 明确指定架构 - 针对 Windows AMD64
+        arch: 'x64', // 强制使用 x64 架构 (AMD64)
+        platform: 'win32', // 针对 Windows 平台
+
+        // 图标配置
+        icon: 'src-electron/icons/icon', // 不需要扩展名，packager会自动选择
+
+        // 输出目录
+        out: 'dist/electron',
+
+        // 忽略的文件/目录
+        ignore: [
+          /\.git/,
+          /node_modules\/.*\/test/,
+          /node_modules\/.*\/tests/,
+          /node_modules\/.*\/\.git/,
+        ],
+
+        // 跨平台编译设置
+        // win32 特定设置
+        win32metadata: {
+          CompanyName: 'osu-music',
+          ProductName: 'osu-music',
+          FileDescription: 'osu! Music Player',
+          InternalName: 'osu-music',
+          OriginalFilename: 'osu-music.exe',
+        },
+
+        // macOS 特定设置
+        appBundleId: 'com.osu-music.app',
+        appCategoryType: 'public.app-category.music',
+
+        // 协议注册
+        protocol: 'osu-music-fusion',
+
+        // 下载选项
+        download: {
+          cacheRoot: 'dist/.electron-download-cache',
+        },
+
+        // 额外资源
+        // extraResource: [],
       },
 
       builder: {
         // https://www.electron.build/configuration/configuration
+        appId: 'com.osu-music.app',
 
-        appId: 'osu-music-project',
+        // 产品名称
+        productName: 'osu-music',
+
+        // 版权信息
+        copyright: 'Copyright © 2024 osu-music',
+
+        // 目录配置
+        directories: {
+          output: 'dist/electron-builder',
+        },
+
+        // 文件配置
+        files: ['dist/electron/**/*', 'node_modules/**/*', 'package.json'],
+
+        // macOS 配置
+        mac: {
+          icon: 'src-electron/icons/icon.icns',
+          category: 'public.app-category.music',
+          target: [
+            {
+              target: 'dmg',
+              arch: ['x64', 'arm64'],
+            },
+          ],
+        },
+
+        // Windows 配置
+        win: {
+          icon: 'src-electron/icons/icon.ico',
+          target: [
+            {
+              target: 'nsis',
+              arch: ['x64'],
+            },
+            {
+              target: 'portable',
+              arch: ['x64'],
+            },
+          ],
+        },
+
+        // Linux 配置
+        linux: {
+          icon: 'src-electron/icons/icon.png',
+          category: 'Audio',
+          target: [
+            {
+              target: 'AppImage',
+              arch: ['x64'],
+            },
+            {
+              target: 'deb',
+              arch: ['x64'],
+            },
+          ],
+        },
+
+        // NSIS 安装器配置 (Windows)
+        nsis: {
+          oneClick: false,
+          perMachine: false,
+          allowToChangeInstallationDirectory: true,
+          deleteAppDataOnUninstall: false,
+        },
+
+        // 协议注册
+        protocols: [
+          {
+            name: 'osu-music-fusion',
+            schemes: ['osu-music-fusion'],
+          },
+        ],
       },
     },
 

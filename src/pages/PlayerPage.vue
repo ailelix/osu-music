@@ -1,5 +1,8 @@
 <template>
-  <q-page class="player-page">
+  <q-page class="player-page" :style="pageBackgroundStyle">
+    <!-- 动态背景层 -->
+    <div class="dynamic-background" :style="backgroundStyle"></div>
+
     <div class="player-container">
       <!-- 当前播放的音乐信息 -->
       <div class="now-playing-section">
@@ -47,16 +50,6 @@
             <p class="track-artist">
               {{ currentTrack?.artist || 'Select a track to start playing' }}
             </p>
-            <!-- 音频可视化效果 -->
-            <div class="audio-visualizer" v-if="currentTrack">
-              <div
-                class="visualizer-bar"
-                v-for="i in 12"
-                :key="i"
-                :class="{ active: isPlaying }"
-                :style="{ '--delay': i * 0.1 + 's' }"
-              ></div>
-            </div>
           </div>
         </div>
       </div>
@@ -142,10 +135,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useMusicStore } from 'src/stores/musicStore';
 
 const musicStore = useMusicStore();
+
+// 保存原始的 overflow 样式
+let originalBodyOverflow = '';
+let originalHtmlOverflow = '';
+
+// 组件挂载时禁用全局滚动
+onMounted(() => {
+  // 保存原始样式
+  originalBodyOverflow = document.body.style.overflow;
+  originalHtmlOverflow = document.documentElement.style.overflow;
+
+  // 禁用滚动
+  document.body.style.overflow = 'hidden';
+  document.documentElement.style.overflow = 'hidden';
+});
+
+// 组件卸载时恢复全局滚动
+onUnmounted(() => {
+  // 恢复原始样式
+  document.body.style.overflow = originalBodyOverflow;
+  document.documentElement.style.overflow = originalHtmlOverflow;
+});
 
 // 本地状态
 const localVolume = ref(Math.round(musicStore.volume * 100));
@@ -182,6 +197,19 @@ const backgroundStyle = computed(() => {
   if (currentTrack.value?.coverUrl) {
     return {
       backgroundImage: `url(${currentTrack.value.coverUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      filter: 'blur(60px) brightness(0.3)',
+    };
+  }
+  return {};
+});
+
+// 页面背景样式（默认背景）
+const pageBackgroundStyle = computed(() => {
+  if (!currentTrack.value?.coverUrl) {
+    return {
+      background: 'linear-gradient(135deg, #1e1e2e 0%, #2d2d47 50%, #1e1e2e 100%)',
     };
   }
   return {};
@@ -275,19 +303,26 @@ const getRepeatIcon = (): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
   height: 100vh;
+  max-height: 100vh;
+  width: 100vw;
+  max-width: 100vw;
   background: linear-gradient(135deg, #0c0c0c, #1a1a2e, #16213e);
-  position: relative;
-  overflow: hidden; // 防止滚动
+  position: absolute; // 改回 absolute，但保持页面级的固定定位
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden; // 防止当前页面滚动
+  z-index: 10; // 确保在其他内容之上
 
   &::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: -100px; // 扩展伪元素的覆盖范围
+    left: -100px;
+    right: -100px;
+    bottom: -100px;
     background:
       radial-gradient(circle at 30% 70%, rgba(255, 107, 107, 0.1), transparent 50%),
       radial-gradient(circle at 70% 30%, rgba(255, 142, 83, 0.1), transparent 50%);
@@ -295,16 +330,38 @@ const getRepeatIcon = (): string => {
   }
 }
 
+// 动态背景层
+.dynamic-background {
+  position: fixed; // 改为 fixed 确保覆盖整个视窗
+  top: -50px; // 扩展顶部区域
+  left: -50px; // 扩展左侧区域
+  right: -50px; // 扩展右侧区域
+  bottom: -50px; // 扩展底部区域
+  width: calc(100vw + 100px); // 明确设置宽度
+  height: calc(100vh + 100px); // 明确设置高度
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(60px) brightness(0.3);
+  opacity: 0.7;
+  z-index: 0;
+  transition: all 0.5s ease;
+  transform: scale(1.1); // 额外缩放确保覆盖
+}
+
 .player-container {
   max-width: 700px;
   width: 100%;
-  padding: 1rem 2rem; // 减少上下padding
+  height: 100vh;
+  max-height: 100vh;
+  padding: 1rem 2rem;
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  justify-content: center; // 垂直居中所有内容
+  justify-content: center;
+  overflow: hidden; // 确保容器内容不滚动
+  box-sizing: border-box; // 确保 padding 不会造成溢出
 }
 
 .now-playing-section {
@@ -317,7 +374,7 @@ const getRepeatIcon = (): string => {
   position: relative;
   display: flex;
   justify-content: center;
-  margin-bottom: 1.5rem; // 减少底部间距
+  margin-bottom: 2.5rem; // 增大专辑封面和歌名之间的距离
 }
 
 .album-art-wrapper {
@@ -398,16 +455,17 @@ const getRepeatIcon = (): string => {
 
 .album-background-blur {
   position: absolute;
-  top: -20px;
-  left: -20px;
-  right: -20px;
-  bottom: -20px;
+  top: -40px; // 进一步扩展模糊背景
+  left: -40px;
+  right: -40px;
+  bottom: -40px;
   background-size: cover;
   background-position: center;
   filter: blur(60px) brightness(0.3) saturate(1.5);
   border-radius: 50%;
   z-index: -1;
   opacity: 0.6;
+  transform: scale(1.2); // 额外缩放确保覆盖
 }
 
 .osu-decorations {
@@ -496,7 +554,7 @@ const getRepeatIcon = (): string => {
     .track-artist {
       font-size: 1.1rem; // 稍微减小字体大小
       color: rgba(255, 255, 255, 0.85);
-      margin: 0 0 1rem 0; // 减少底部间距
+      margin: 0 0 0.5rem 0; // 减小歌手和控制组件之间的距离
       text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     }
   }
@@ -867,8 +925,10 @@ const getRepeatIcon = (): string => {
 @media (max-height: 500px) {
   .player-container {
     padding: 0.5rem 1rem;
-    justify-content: flex-start;
-    overflow-y: auto;
+    justify-content: center; // 保持居中，移除滚动
+    overflow: hidden; // 确保不滚动
+    height: 100vh;
+    max-height: 100vh;
   }
 
   .album-art-wrapper {
