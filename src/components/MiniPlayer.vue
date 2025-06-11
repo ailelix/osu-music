@@ -1,19 +1,48 @@
 <template>
   <Transition name="mini-player" appear>
-    <div v-if="shouldShowMiniPlayer" class="mini-player-container"
-      :class="{ 'is-minimized': isMinimized, 'is-transitioning': isTransitioning }"
-      :style="isMinimized ? { left: minimizedPlayerTargetCenterLeft } : {}">
-      <div class="mini-player" :class="{ 'is-minimized': isMinimized }">
+    <div
+      v-if="shouldShowMiniPlayer"
+      class="mini-player-container"
+      :class="{ collapsed: isCollapsed }"
+    >
+      <!-- 收起状态下的触发区域 -->
+      <div
+        v-if="isCollapsed"
+        class="collapsed-trigger-area"
+        @mouseenter="handleTriggerAreaEnter"
+        @mouseleave="handleTriggerAreaLeave"
+      ></div>
+
+      <!-- 收起按钮 -->
+      <transition name="fade-button">
+        <div v-if="showCollapseButton" class="collapse-button-container">
+          <q-btn
+            round
+            flat
+            :icon="isCollapsed ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
+            size="sm"
+            @click.stop="toggleCollapse"
+            class="collapse-btn"
+          />
+        </div>
+      </transition>
+
+      <div class="mini-player" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
         <!-- 背景模糊层 -->
         <div class="background-blur" :style="backgroundStyle"></div>
 
         <!-- 主要内容 -->
-        <div class="mini-player-content" @click="handleContentClick">
+        <div class="mini-player-content" @click="openPlayer">
           <!-- 旋转封面 -->
           <div class="rotating-cover-container">
             <div class="rotating-cover" :class="{ spinning: isPlaying }">
-              <q-img v-if="currentTrack?.coverUrl" :src="currentTrack.coverUrl" class="cover-image" fit="cover"
-                :ratio="1" />
+              <q-img
+                v-if="currentTrack?.coverUrl"
+                :src="currentTrack.coverUrl"
+                class="cover-image"
+                fit="cover"
+                :ratio="1"
+              />
               <div v-else class="cover-placeholder">
                 <q-icon name="music_note" size="24px" color="white" />
               </div>
@@ -39,21 +68,43 @@
 
           <!-- 控制按钮 -->
           <div class="control-section">
-            <q-btn round flat :icon="isPlaying ? 'pause' : 'play_arrow'" size="md" @click.stop="togglePlayPause"
-              class="play-btn" />
-            <q-btn round flat icon="skip_next" size="sm" @click.stop="nextTrack" class="control-btn" />
+            <q-btn
+              round
+              flat
+              :icon="isPlaying ? 'pause' : 'play_arrow'"
+              size="md"
+              @click.stop="togglePlayPause"
+              class="play-btn"
+            />
+            <q-btn
+              round
+              flat
+              icon="skip_next"
+              size="sm"
+              @click.stop="nextTrack"
+              class="control-btn"
+            />
           </div>
 
           <!-- 音量控制 -->
-          <div class="volume-section" @click.stop="toggleVolumeSlider" ref="volumeSectionRef">
-            <q-btn round flat :icon="volumeIcon" size="sm" @click.stop="toggleMute" class="volume-btn" />
-            <!-- 弹出式音量滑条 -->
-            <transition name="fade">
-              <div v-if="showVolumeSlider" class="volume-slider-popup">
-                <q-slider v-model="localVolume" :min="0" :max="100" color="primary" track-color="rgba(255,255,255,0.2)"
-                  @update:model-value="onVolumeChange" class="volume-slider" vertical reverse />
-              </div>
-            </transition>
+          <div class="volume-section">
+            <q-btn
+              round
+              flat
+              :icon="volumeIcon"
+              size="sm"
+              @click.stop="toggleMute"
+              class="volume-btn"
+            />
+            <q-slider
+              v-model="localVolume"
+              :min="0"
+              :max="100"
+              color="primary"
+              track-color="rgba(255,255,255,0.2)"
+              @update:model-value="onVolumeChange"
+              class="volume-slider-inline"
+            />
           </div>
         </div>
 
@@ -63,18 +114,12 @@
           <div class="osu-triangle"></div>
         </div>
       </div>
-
-      <!-- 最小化/展开按钮作为独立组件 -->
-      <div class="minimize-btn-container">
-        <q-btn round flat :icon="isMinimized ? 'keyboard_arrow_right' : 'keyboard_arrow_left'" size="sm"
-          @click.stop="toggleMinimize" class="minimize-btn control-btn" />
-      </div>
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useMusicStore } from 'src/stores/musicStore';
 
@@ -82,26 +127,13 @@ const router = useRouter();
 const route = useRoute();
 const musicStore = useMusicStore();
 
-// 最小化状态
-const isMinimized = ref(false);
-const isTransitioning = ref(false);
-
-// 计算最小化时播放器目标中心点的 left 值
-const minimizedPlayerTargetCenterLeft = computed(() => {
-  // 对于大屏幕：容器max-width: 800px，通过 left: 50%; transform: translateX(-50%) 居中。
-  // 容器左边缘距离视口: 50% - 400px。
-  // 展开时，封面中心点距离容器左边缘: 20px (padding-left) + 25px (封面半径) = 45px。
-  // 所以，最小化播放器应该居中的目标位置 (CSS left): calc(50% - 400px + 45px)。
-  // transform: translateX(-50%) 会基于新的60px宽度将其正确居中。
-  return 'calc(50% - 400px + 45px)';
-});
-
 // 本地音量状态
 const localVolume = ref(Math.round(musicStore.volume * 100));
-const showVolumeSlider = ref(false);
 const isMuted = ref(false);
 const previousVolume = ref(50); // 静音前的音量
-const volumeSectionRef = ref<HTMLElement | null>(null);
+const isCollapsed = ref(false); // 收起状态
+const showCollapseButton = ref(false); // 收起按钮显示状态
+const hideButtonTimer = ref<NodeJS.Timeout | null>(null); // 隐藏按钮的定时器
 
 // 计算属性
 const currentTrack = computed(() => musicStore.currentTrack);
@@ -137,34 +169,6 @@ const backgroundStyle = computed(() => {
 });
 
 // 方法
-const toggleMinimize = async () => {
-  if (isTransitioning.value) return; // 防止重复触发
-
-  isTransitioning.value = true; // 开始过渡，CSS将处理透明度变化（0.15秒内变为0.3）
-
-  // 延迟A: 150毫秒。此时，播放器应已淡化到0.3透明度。
-  setTimeout(() => {
-    isMinimized.value = !isMinimized.value; // 切换最小化状态，触发位置/尺寸动画（持续0.4秒）
-    // 位置/尺寸动画在 150ms + 400ms = 550ms 时完成。
-
-    // 延迟B: 我们希望播放器在550ms时完全恢复不透明。
-    // 透明度从0.3恢复到1.0的过渡需要0.15秒（150毫秒）。
-    // 因此，isTransitioning.value = false 应在 550ms - 150ms = 400ms 时调用。
-    // 此setTimeout是相对于延迟A（150ms）的，所以延时为 400ms - 150ms = 250ms。
-    setTimeout(() => {
-      isTransitioning.value = false; // 结束过渡，CSS将处理透明度恢复（0.15秒内变为1.0）
-    }, 250); // 从100毫秒调整为250毫秒
-  }, 150);
-};
-
-const handleContentClick = () => {
-  if (isMinimized.value) {
-    isMinimized.value = false; // 如果是最小化状态，则展开
-  } else {
-    openPlayer(); // 如果已经展开，则打开完整播放器页面
-  }
-};
-
 const togglePlayPause = () => {
   if (isPlaying.value) {
     musicStore.pause();
@@ -192,26 +196,42 @@ const openPlayer = () => {
   router.push('/player');
 };
 
-function toggleVolumeSlider() {
-  showVolumeSlider.value = !showVolumeSlider.value;
-}
+// 收起/展开小播放器
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value;
+};
 
-function handleClickOutside(event: MouseEvent) {
-  if (
-    showVolumeSlider.value &&
-    volumeSectionRef.value &&
-    !volumeSectionRef.value.contains(event.target as Node)
-  ) {
-    showVolumeSlider.value = false;
+// 鼠标进入小播放器区域
+const handleMouseEnter = () => {
+  if (hideButtonTimer.value) {
+    clearTimeout(hideButtonTimer.value);
+    hideButtonTimer.value = null;
   }
-}
+  showCollapseButton.value = true;
+};
 
-onMounted(() => {
-  document.addEventListener('mousedown', handleClickOutside);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', handleClickOutside);
-});
+// 鼠标离开小播放器区域
+const handleMouseLeave = () => {
+  // 对于正常状态，给一个短暂的延时
+  hideButtonTimer.value = setTimeout(() => {
+    showCollapseButton.value = false;
+  }, 1200); // 1.2秒后隐藏
+};
+
+// 触发区域专用的鼠标进入事件
+const handleTriggerAreaEnter = () => {
+  if (hideButtonTimer.value) {
+    clearTimeout(hideButtonTimer.value);
+    hideButtonTimer.value = null;
+  }
+  showCollapseButton.value = true;
+};
+
+// 触发区域专用的鼠标离开事件
+const handleTriggerAreaLeave = () => {
+  // 立即隐藏按钮
+  showCollapseButton.value = false;
+};
 
 // 监听store中的音量变化
 watch(
@@ -228,6 +248,13 @@ const onVolumeChange = (value: number | null) => {
     musicStore.setVolume(value / 100);
   }
 };
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (hideButtonTimer.value) {
+    clearTimeout(hideButtonTimer.value);
+  }
+});
 </script>
 
 <style lang="scss" scoped>
@@ -240,71 +267,51 @@ const onVolumeChange = (value: number | null) => {
   width: calc(100% - 40px);
   max-width: 800px;
   pointer-events: none;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease-in-out;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
-  &.is-minimized {
-    bottom: 20px;
-    /* left将通过内联样式动态设置 */
-    transform: none;
-    width: 60px;
-    height: 60px;
-  }
+  /* 确保音量滑杆区域能够正确显示 */
+  overflow: visible;
 
-  &.is-transitioning {
-    opacity: 0.3;
-    /* Dim the player during transition to mask jumps */
-    // The existing transition properties on .mini-player-container will apply to this opacity change.
-    // transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease-in-out;
-
-    &:hover {
-      transform: none !important;
-      /* 过渡期间禁用hover效果 */
-    }
-
-    .mini-player {
-      &:hover {
-        transform: none !important;
-        box-shadow:
-          0 8px 32px rgba(0, 0, 0, 0.4),
-          0 0 0 1px rgba(255, 255, 255, 0.05),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1)
-      }
-    }
+  &.collapsed {
+    transform: translateX(-50%) translateY(calc(100% + 20px));
   }
 }
 
-/* 最小化按钮容器样式 */
-.minimize-btn-container {
+.collapsed-trigger-area {
   position: absolute;
-  top: 50%;
-  right: -40px;
-  transform: translateY(-50%);
-  z-index: 1001;
-  pointer-events: all;
-  transition: all 0.2s ease-in-out;
-}
-
-.is-minimized .minimize-btn-container {
-  right: -36px;
-  /* 距离mini player容器外部向右4px */
-  top: 50%;
-  transform: translateY(-50%);
-  transition: all 0.2s ease-in-out;
-}
-
-.minimize-btn {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
+  bottom: -135px; /* 向上移动到覆盖按钮位置上方1个半径 */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 180px; /* 6倍按钮直径 (30px * 6) 作为圆形直径 */
+  height: 180px;
+  border-radius: 50%; /* 使其成为圆形 */
   pointer-events: auto;
-  visibility: visible;
-  /* 确保按钮始终可见 */
-  opacity: 1;
+  /* 调试用，生产环境可以注释掉 */
+  /* background: rgba(255, 0, 0, 0.1); */
+}
+
+.collapse-button-container {
+  position: absolute;
+  top: -45px; /* 向上移动一个按钮直径 (30px) */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+  pointer-events: auto;
+}
+
+.collapse-btn {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  width: 30px;
+  height: 30px;
+  transition: all 0.3s ease;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.9);
     color: white;
+    transform: scale(1.1);
   }
 }
 
@@ -318,7 +325,7 @@ const onVolumeChange = (value: number | null) => {
     0 8px 32px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  overflow: hidden;
+  overflow: hidden; /* 保持隐藏以维持圆角效果 */
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: all;
@@ -330,94 +337,6 @@ const onVolumeChange = (value: number | null) => {
       0 12px 40px rgba(0, 0, 0, 0.5),
       0 0 0 1px rgba(255, 255, 255, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  }
-
-  // 最小化状态样式
-  &.is-minimized {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    padding: 0;
-    margin: 0;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-
-    .mini-player-content {
-      padding: 5px;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      height: 100%;
-      position: relative;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .rotating-cover-container {
-      position: absolute;
-      width: 50px;
-      height: 50px;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      margin: 0;
-      z-index: 1;
-      /* 封面设为底层 */
-      transition: all 0.2s ease-in-out;
-    }
-
-    &:hover {
-      transform: scale(1.05);
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
-    }
-
-    .track-section,
-    .volume-section,
-    .osu-decorations {
-      opacity: 0;
-      transform: scale(0.8) translateY(10px);
-      pointer-events: none;
-      visibility: hidden;
-      transition: all 0.2s ease-in-out;
-    }
-
-    .control-section {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      opacity: 0.9;
-      transition: all 0.2s ease-in-out;
-      z-index: 2;
-      /* 控制按钮设为上层，形成同心圆 */
-
-      &:hover {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.05);
-      }
-
-      .control-btn {
-        opacity: 0;
-        transform: scale(0.8);
-        pointer-events: none;
-        visibility: hidden;
-        transition: all 0.2s ease-in-out;
-      }
-
-      .play-btn {
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(8px);
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        width: 40px;
-        height: 40px;
-        transition: all 0.2s ease-in-out;
-
-        &:hover {
-          background: rgba(0, 0, 0, 0.6);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-        }
-      }
-    }
   }
 }
 
@@ -562,14 +481,12 @@ const onVolumeChange = (value: number | null) => {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-
-
 .play-btn {
   color: white;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+  transition: all 1s ease;
 
   &:hover {
     background: rgba(255, 255, 255, 0.2);
@@ -593,59 +510,54 @@ const onVolumeChange = (value: number | null) => {
   flex-shrink: 0;
   position: relative;
   z-index: 10;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.volume-slider-popup {
-  position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(30, 30, 40, 0.95);
-  border-radius: 16px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.25),
-    0 1.5px 8px rgba(255, 255, 255, 0.08);
-  padding: 16px 10px 10px 10px;
-  min-width: 36px;
   display: flex;
   align-items: center;
-  transition: opacity 0.2s;
-}
+  gap: 12px;
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s;
-}
+  .volume-btn {
+    color: rgba(255, 255, 255, 0.8);
+    transition: color 0.2s ease;
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+    &:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
 
-.fade-enter-to,
-.fade-leave-from {
-  opacity: 1;
-}
+  .volume-slider-inline {
+    width: 80px;
 
-.minimize-btn {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  pointer-events: auto;
-  /* 确保按钮始终可点击 */
-  visibility: visible;
-  /* 确保按钮始终可见 */
-  opacity: 1;
+    :deep(.q-slider__track) {
+      background: rgba(255, 255, 255, 0.2);
+      height: 3px;
+      transition: none !important;
+    }
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
+    :deep(.q-slider__track-container) {
+      transition: none !important;
+    }
+
+    :deep(.q-slider__thumb) {
+      background: white;
+      border: none;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      width: 12px !important;
+      height: 12px !important;
+      border-radius: 50% !important;
+      transition: none !important;
+    }
+
+    :deep(.q-slider__track--active) {
+      background: linear-gradient(90deg, #ff6b6b, #ff8e53);
+      height: 3px;
+      transition: none !important;
+    }
+
+    :deep(.q-slider__thumb-container) {
+      transition: none !important;
+    }
   }
 }
-
-
 
 .osu-decorations {
   position: absolute;
@@ -698,7 +610,6 @@ const onVolumeChange = (value: number | null) => {
 }
 
 @keyframes gradient-shift {
-
   0%,
   100% {
     background-position: 0% 50%;
@@ -710,7 +621,6 @@ const onVolumeChange = (value: number | null) => {
 }
 
 @keyframes osu-pulse {
-
   0%,
   100% {
     transform: scale(1);
@@ -739,17 +649,49 @@ const onVolumeChange = (value: number | null) => {
   transform: translateX(-50%) translateY(20px) scale(0.95);
 }
 
+// 收起按钮动画
+.fade-button-enter-active,
+.fade-button-leave-active {
+  transition: all 0.2s ease;
+}
+
+.fade-button-enter-from,
+.fade-button-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-5px) scale(0.8);
+}
+
+.fade-button-enter-to,
+.fade-button-leave-from {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
 // 响应式设计
 @media (max-width: 768px) {
   .mini-player-container {
     bottom: 15px;
     width: calc(100% - 20px);
 
-    &.is-minimized {
-      /* Small screen cover center X: 10px (container left edge relative to viewport) + 16px (content padding-left) + 22.5px (cover radius) */
-      /* This 'left' value should be the target center, as transform: translateX(-50%) will handle centering the 60px element. */
-      left: calc(10px + 16px + 22.5px) !important;
+    &.collapsed {
+      transform: translateX(-50%) translateY(calc(100% + 15px));
     }
+  }
+
+  .collapsed-trigger-area {
+    bottom: -117px; /* 移动端调整位置，覆盖按钮位置上方1个半径 */
+    width: 156px; /* 移动端6倍按钮直径 (26px * 6) */
+    height: 156px;
+    border-radius: 50%;
+  }
+
+  .collapse-button-container {
+    top: -38px; /* 移动端向上移动一个按钮直径 (26px) */
+  }
+
+  .collapse-btn {
+    width: 26px;
+    height: 26px;
   }
 
   .mini-player-content {
