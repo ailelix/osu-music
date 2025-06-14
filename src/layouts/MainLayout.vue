@@ -19,9 +19,9 @@
           dense
           flat
           round
-          icon="search"
-          aria-label="Search"
-          @click="navigateToSearch"
+          icon="queue_music"
+          aria-label="Play Queue"
+          @click="togglePlayQueue"
           class="non-draggable-area"
         />
       </q-toolbar>
@@ -29,6 +29,16 @@
 
     <!-- Left Drawer (using AppDrawer component) -->
     <AppDrawer v-model:is-open="leftDrawerOpen" />
+
+    <!-- Play Queue -->
+    <PlayQueue
+      :visible="playQueueOpen"
+      :queue="playQueueData"
+      :current-track="currentTrackData"
+      @play-track="handlePlayTrack"
+      @remove-from-queue="handleRemoveFromQueue"
+      @clear-queue="handleClearQueue"
+    />
 
     <!-- Page Container -->
     <q-page-container class="page-container-bg">
@@ -47,19 +57,54 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue';
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { isNavigationFailure, NavigationFailureType } from 'vue-router';
+import { useRoute } from 'vue-router';
+import { useMusicStore, type MusicTrack } from 'src/stores/musicStore';
 import AppLogo from 'components/AppLogo.vue';
 import AppDrawer from 'components/AppDrawer.vue';
 import MiniPlayer from 'components/MiniPlayer.vue';
 import CustomTrafficLights from 'components/CustomTrafficLights.vue';
+import PlayQueue from 'components/PlayQueue.vue';
+
+// 定义 Track 类型 - 与 PlayQueue 组件保持一致
+interface Track {
+  id: string;
+  title: string;
+  artist?: string;
+  duration?: number;
+  coverUrl?: string;
+  beatmapsetId?: number;
+}
 
 const leftDrawerOpen = ref(false);
-const router = useRouter();
+const playQueueOpen = ref(false);
 const route = useRoute();
 const isOnMac = ref(false);
 const isFullScreen = ref(false); // 新增：追踪全屏状态
 const showTrafficLights = ref(false); // 控制红绿灯显示
+const musicStore = useMusicStore();
+
+// 将 MusicTrack 转换为 PlayQueue 组件期望的 Track 类型
+const convertToTrack = (musicTrack: MusicTrack): Track => {
+  const track: Track = {
+    id: musicTrack.id,
+    title: musicTrack.title,
+  };
+
+  if (musicTrack.artist) track.artist = musicTrack.artist;
+  if (musicTrack.duration) track.duration = musicTrack.duration;
+  if (musicTrack.coverUrl) track.coverUrl = musicTrack.coverUrl;
+
+  const beatmapsetId = parseInt(musicTrack.id);
+  if (!isNaN(beatmapsetId)) track.beatmapsetId = beatmapsetId;
+
+  return track;
+};
+
+// 转换播放队列数据
+const playQueueData = computed(() => musicStore.playQueue.map(convertToTrack));
+const currentTrackData = computed(() =>
+  musicStore.currentTrack ? convertToTrack(musicStore.currentTrack) : null,
+);
 
 // 监听路由变化，切换到 player 页面时自动收起抽屉
 watch(
@@ -131,20 +176,26 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-async function navigateToSearch() {
-  try {
-    await router.push({ name: 'search' });
-    if (leftDrawerOpen.value) {
-      leftDrawerOpen.value = false;
-    }
-  } catch (error) {
-    if (
-      !isNavigationFailure(error, NavigationFailureType.aborted) &&
-      !isNavigationFailure(error, NavigationFailureType.cancelled)
-    ) {
-      console.error('Failed to navigate to search:', error);
-    }
+// 播放队列相关方法
+function togglePlayQueue() {
+  playQueueOpen.value = !playQueueOpen.value;
+}
+
+function handlePlayTrack(track: Track) {
+  // 在播放队列中找到歌曲索引并播放
+  const trackIndex = musicStore.playQueue.findIndex((t) => t.id === track.id);
+  if (trackIndex >= 0) {
+    musicStore.playFromQueue(trackIndex);
   }
+  console.log('Playing track:', track.title);
+}
+
+function handleRemoveFromQueue(index: number) {
+  musicStore.removeFromQueue(index);
+}
+
+function handleClearQueue() {
+  musicStore.clearPlayQueue();
 }
 
 // 红绿灯区域鼠标事件处理（所有平台都启用）

@@ -281,6 +281,46 @@ export const usePlaylistStore = defineStore('playlist', {
     },
 
     /**
+     * 更新歌单信息
+     */
+    async updatePlaylist(
+      playlistId: string,
+      updates: {
+        name?: string;
+        description?: string;
+        tags?: string[];
+        tracks?: PlaylistTrack[];
+      },
+    ): Promise<void> {
+      const playlist = this.getPlaylistById(playlistId);
+      if (!playlist) {
+        throw new Error('Playlist not found');
+      }
+
+      // 更新歌单信息
+      if (updates.name !== undefined) {
+        playlist.name = updates.name;
+      }
+      if (updates.description !== undefined) {
+        playlist.description = updates.description;
+      }
+      if (updates.tags !== undefined) {
+        playlist.tags = updates.tags;
+      }
+      if (updates.tracks !== undefined) {
+        playlist.tracks = updates.tracks;
+        playlist.trackCount = updates.tracks.length;
+        playlist.totalDuration = updates.tracks.reduce((sum, track) => sum + track.duration, 0);
+      }
+
+      playlist.updatedAt = new Date().toISOString();
+
+      // 保存到文件
+      await this.savePlaylistToFile(playlist);
+      console.log(`Updated playlist: "${playlist.name}"`);
+    },
+
+    /**
      * 格式化播放时长
      */
     formatDuration(seconds: number): string {

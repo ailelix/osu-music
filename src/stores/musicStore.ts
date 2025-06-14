@@ -42,6 +42,11 @@ export const useMusicStore = defineStore('music', () => {
   const currentTime = ref(0); // 当前播放时间（秒）
   const duration = ref(0); // 音频总时长（秒）
 
+  // 播放队列相关状态
+  const playQueue = ref<MusicTrack[]>([]);
+  const currentQueueIndex = ref(0);
+  const originalQueue = ref<MusicTrack[]>([]); // 保存原始队列用于随机模式切换
+
   // 初始化音频服务事件监听
   const initAudioEvents = () => {
     audioService.on('play', () => {
@@ -308,28 +313,31 @@ export const useMusicStore = defineStore('music', () => {
 
   // 上一曲
   const previousTrack = async () => {
-    if (!currentPlaylist.value || !currentTrack.value) return;
-    const idx = currentPlaylist.value.tracks.findIndex((t) => t.id === currentTrack.value?.id);
-    if (idx > 0) {
-      const prev = currentPlaylist.value.tracks[idx - 1];
-      if (prev) {
-        await playTrack(prev);
+    if (playQueue.value.length === 0) return;
+
+    if (currentQueueIndex.value > 0) {
+      currentQueueIndex.value--;
+      const track = playQueue.value[currentQueueIndex.value];
+      if (track) {
+        await playTrack(track);
       }
     }
   };
 
   // 下一曲
   const nextTrack = async () => {
-    if (!currentPlaylist.value || !currentTrack.value) return;
-    const idx = currentPlaylist.value.tracks.findIndex((t) => t.id === currentTrack.value?.id);
-    if (idx >= 0 && idx < currentPlaylist.value.tracks.length - 1) {
-      const next = currentPlaylist.value.tracks[idx + 1];
-      if (next) {
-        await playTrack(next);
+    if (playQueue.value.length === 0) return;
+
+    if (currentQueueIndex.value < playQueue.value.length - 1) {
+      currentQueueIndex.value++;
+      const track = playQueue.value[currentQueueIndex.value];
+      if (track) {
+        await playTrack(track);
       }
     } else if (repeatMode.value === 'all') {
       // 重复播放整个列表
-      const firstTrack = currentPlaylist.value.tracks[0];
+      currentQueueIndex.value = 0;
+      const firstTrack = playQueue.value[0];
       if (firstTrack) {
         await playTrack(firstTrack);
       }
@@ -339,6 +347,12 @@ export const useMusicStore = defineStore('music', () => {
   // 切换随机模式
   const toggleShuffle = () => {
     shuffleMode.value = shuffleMode.value === 'off' ? 'on' : 'off';
+
+    if (shuffleMode.value === 'on') {
+      shuffleQueue();
+    } else {
+      restoreOriginalQueue();
+    }
   };
 
   // 切换重复模式
@@ -366,6 +380,101 @@ export const useMusicStore = defineStore('music', () => {
     if (playlist.tracks.length > 0) {
       currentTrack.value = playlist.tracks[0] || null;
       isPlaying.value = true;
+    }
+  };
+
+  // 播放队列管理方法
+  const setPlayQueue = (tracks: MusicTrack[], startIndex = 0) => {
+    playQueue.value = [...tracks];
+    originalQueue.value = [...tracks];
+    currentQueueIndex.value = startIndex;
+
+    if (tracks.length > 0 && tracks[startIndex]) {
+      currentTrack.value = tracks[startIndex];
+    }
+  };
+
+  const clearPlayQueue = () => {
+    playQueue.value = [];
+    originalQueue.value = [];
+    currentQueueIndex.value = 0;
+    currentTrack.value = null;
+    isPlaying.value = false;
+  };
+
+  const addToQueue = (track: MusicTrack) => {
+    playQueue.value.push(track);
+    originalQueue.value.push(track);
+  };
+
+  const addToQueueNext = (track: MusicTrack) => {
+    const insertIndex = currentQueueIndex.value + 1;
+    playQueue.value.splice(insertIndex, 0, track);
+    originalQueue.value.splice(insertIndex, 0, track);
+  };
+
+  const removeFromQueue = (index: number) => {
+    if (index < 0 || index >= playQueue.value.length) return;
+
+    playQueue.value.splice(index, 1);
+    originalQueue.value.splice(index, 1);
+
+    // 调整当前播放索引
+    if (index < currentQueueIndex.value) {
+      currentQueueIndex.value--;
+    } else if (index === currentQueueIndex.value) {
+      // 如果删除的是当前播放的歌曲
+      if (playQueue.value.length === 0) {
+        clearPlayQueue();
+      } else {
+        // 播放下一首，如果没有下一首则播放第一首
+        currentQueueIndex.value = Math.min(currentQueueIndex.value, playQueue.value.length - 1);
+        currentTrack.value = playQueue.value[currentQueueIndex.value] || null;
+      }
+    }
+  };
+
+  const shuffleQueue = () => {
+    if (playQueue.value.length <= 1) return;
+
+    const currentTrackData = currentTrack.value;
+    const shuffledTracks = [...playQueue.value];
+
+    // Fisher-Yates 洗牌算法
+    for (let i = shuffledTracks.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = shuffledTracks[i];
+      if (temp && shuffledTracks[j]) {
+        shuffledTracks[i] = shuffledTracks[j];
+        shuffledTracks[j] = temp;
+      }
+    }
+
+    playQueue.value = shuffledTracks;
+
+    // 更新当前播放索引
+    if (currentTrackData) {
+      currentQueueIndex.value = playQueue.value.findIndex((t) => t.id === currentTrackData.id);
+    }
+  };
+
+  const restoreOriginalQueue = () => {
+    playQueue.value = [...originalQueue.value];
+
+    // 更新当前播放索引
+    if (currentTrack.value) {
+      currentQueueIndex.value = playQueue.value.findIndex((t) => t.id === currentTrack.value?.id);
+    }
+  };
+
+  // 播放队列中的指定歌曲
+  const playFromQueue = async (index: number) => {
+    if (index < 0 || index >= playQueue.value.length) return;
+
+    currentQueueIndex.value = index;
+    const track = playQueue.value[index];
+    if (track) {
+      await playTrack(track);
     }
   };
 
@@ -403,6 +512,67 @@ export const useMusicStore = defineStore('music', () => {
     }
   };
 
+  // 根据 beatmapsetId 查找实际的音频文件
+  const findTrackByBeatmapsetId = (beatmapsetId: number): MusicTrack | null => {
+    console.log(`[findTrackByBeatmapsetId] Searching for beatmapsetId: ${beatmapsetId}`);
+    console.log(`[findTrackByBeatmapsetId] Available tracks count: ${tracks.value.length}`);
+
+    // 打印前几个 track 的信息用于调试
+    if (tracks.value.length > 0) {
+      console.log(
+        '[findTrackByBeatmapsetId] Sample tracks:',
+        tracks.value.slice(0, 3).map((t) => ({
+          id: t.id,
+          fileName: t.fileName,
+          filePath: t.filePath,
+        })),
+      );
+    }
+
+    // 首先尝试精确匹配 beatmapsetId
+    const exactMatch = tracks.value.find((track) => track.id === beatmapsetId.toString());
+    if (exactMatch) {
+      console.log(`[findTrackByBeatmapsetId] Found exact match:`, exactMatch.fileName);
+      return exactMatch;
+    }
+
+    // 然后尝试匹配以 "beatmap-{beatmapsetId}-" 开头的 ID（下载的音频文件格式）
+    const prefixMatch = tracks.value.find(
+      (track) =>
+        track.id.startsWith(`beatmap-${beatmapsetId}-`) || track.id.startsWith(`${beatmapsetId}-`),
+    );
+    if (prefixMatch) {
+      console.log(`[findTrackByBeatmapsetId] Found prefix match:`, prefixMatch.fileName);
+      return prefixMatch;
+    }
+
+    // 尝试在文件名中查找包含 beatmapsetId 的文件
+    const fileNameMatch = tracks.value.find(
+      (track) =>
+        track.fileName.includes(`${beatmapsetId}-`) ||
+        track.fileName.includes(`${beatmapsetId}.`) ||
+        track.filePath.includes(`${beatmapsetId}-`) ||
+        track.filePath.includes(`${beatmapsetId}.`),
+    );
+    if (fileNameMatch) {
+      console.log(`[findTrackByBeatmapsetId] Found filename match:`, fileNameMatch.fileName);
+      return fileNameMatch;
+    }
+
+    // 最后尝试模糊匹配（去掉扩展名后匹配）
+    const fuzzyMatch = tracks.value.find((track) => {
+      const nameWithoutExt = track.fileName.replace(/\.(mp3|wav|ogg|m4a|flac)$/i, '');
+      return nameWithoutExt.includes(beatmapsetId.toString());
+    });
+    if (fuzzyMatch) {
+      console.log(`[findTrackByBeatmapsetId] Found fuzzy match:`, fuzzyMatch.fileName);
+      return fuzzyMatch;
+    }
+
+    console.log(`[findTrackByBeatmapsetId] No match found for beatmapsetId: ${beatmapsetId}`);
+    return null;
+  };
+
   return {
     // 状态
     tracks,
@@ -417,6 +587,8 @@ export const useMusicStore = defineStore('music', () => {
     seek,
     currentTime,
     duration,
+    playQueue,
+    currentQueueIndex,
 
     // 计算属性
     totalTracks,
@@ -438,6 +610,15 @@ export const useMusicStore = defineStore('music', () => {
     seekTo,
     setVolume,
     setCurrentPlaylist,
+    setPlayQueue,
+    clearPlayQueue,
+    addToQueue,
+    addToQueueNext,
+    removeFromQueue,
+    shuffleQueue,
+    restoreOriginalQueue,
+    playFromQueue,
+    findTrackByBeatmapsetId,
     searchTracks,
     addTracks,
     removeTrack,

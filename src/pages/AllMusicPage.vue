@@ -61,10 +61,20 @@
         </div>
         <div class="col-auto">
           <div class="row q-gutter-md">
-            <q-btn icon="refresh" label="Scan Music" @click="scanMusic" :loading="musicStore.isLoading"
-              class="lazer-action-btn lazer-bg-pink" />
-            <q-btn icon="shuffle" label="Shuffle All" @click="shuffleAll" :disable="musicStore.totalTracks === 0"
-              class="lazer-action-btn lazer-bg-purple" />
+            <q-btn
+              icon="refresh"
+              label="Scan Music"
+              @click="scanMusic"
+              :loading="musicStore.isLoading"
+              class="lazer-action-btn lazer-bg-pink"
+            />
+            <q-btn
+              icon="shuffle"
+              label="Shuffle All"
+              @click="shuffleAll"
+              :disable="musicStore.totalTracks === 0"
+              class="lazer-action-btn lazer-bg-purple"
+            />
           </div>
         </div>
       </div>
@@ -74,20 +84,41 @@
     <section class="search-section q-mb-lg">
       <div class="row q-gutter-md items-end">
         <div class="col">
-          <q-input v-model="searchQuery" label="Search music..." outlined dark clearable
-            @update:model-value="onSearchChange">
+          <q-input
+            v-model="searchQuery"
+            label="Search music..."
+            outlined
+            dark
+            clearable
+            @update:model-value="onSearchChange"
+          >
             <template #prepend>
               <q-icon name="search" />
             </template>
           </q-input>
         </div>
         <div class="col-auto">
-          <q-select v-model="sortBy" :options="sortOptions" option-value="value" option-label="label" outlined dark
-            label="Sort by" style="min-width: 150px" @update:model-value="onSortChange" />
+          <q-select
+            v-model="sortBy"
+            :options="sortOptions"
+            option-value="value"
+            option-label="label"
+            outlined
+            dark
+            label="Sort by"
+            style="min-width: 150px"
+            @update:model-value="onSortChange"
+          />
         </div>
         <div class="col-auto">
-          <q-btn-toggle v-model="viewMode" :options="viewModeOptions" color="primary" outline
-            @update:model-value="onViewModeChange" stretch />
+          <q-btn-toggle
+            v-model="viewMode"
+            :options="viewModeOptions"
+            color="primary"
+            outline
+            @update:model-value="onViewModeChange"
+            stretch
+          />
         </div>
       </div>
     </section>
@@ -103,7 +134,14 @@
       <q-icon name="error_outline" size="4rem" color="negative" />
       <h5 class="text-negative q-mt-md">Scan Failed</h5>
       <p class="text-grey-6">{{ musicStore.error }}</p>
-      <q-btn color="primary" label="Retry" icon="refresh" outline @click="scanMusic" class="q-mt-md" />
+      <q-btn
+        color="primary"
+        label="Retry"
+        icon="refresh"
+        outline
+        @click="scanMusic"
+        class="q-mt-md"
+      />
     </div>
 
     <!-- 音乐网格/列表 -->
@@ -111,9 +149,20 @@
       <!-- 网格视图 -->
       <div v-if="viewMode === 'grid'" class="music-grid">
         <div v-if="filteredTracks.length > 0" class="row q-col-gutter-lg">
-          <div v-for="track in filteredTracks" :key="track.id" class="col-12 col-sm-6 col-md-4 col-lg-3">
-            <MusicCard :track="track" @click="playTrack(track)" @play="playTrack(track)" @menu="handleMenuAction(track)"
-              @addToPlaylist="handleAddToPlaylist(track)" @showInfo="showTrackInfo(track)" />
+          <div
+            v-for="track in filteredTracks"
+            :key="track.id"
+            class="col-12 col-sm-6 col-md-4 col-lg-3"
+          >
+            <MusicCard
+              :track="track"
+              @click="playTrack(track)"
+              @play="playTrack(track)"
+              @addToPlaylist="handleAddToPlaylist(track)"
+              @showInfo="showTrackInfo(track)"
+              @addToQueue="addTrackToQueue(track)"
+              @playNext="playTrackNext(track)"
+            />
           </div>
         </div>
 
@@ -130,16 +179,28 @@
                 : 'Scan your music folder to import tracks'
             }}
           </p>
-          <q-btn v-if="!searchQuery" color="primary" label="Scan Music" icon="refresh" outline @click="scanMusic"
-            class="q-mt-md" />
+          <q-btn
+            v-if="!searchQuery"
+            color="primary"
+            label="Scan Music"
+            icon="refresh"
+            outline
+            @click="scanMusic"
+            class="q-mt-md"
+          />
         </div>
       </div>
 
       <!-- 列表视图 -->
       <div v-else class="music-list show-scrollbar">
         <q-list v-if="filteredTracks.length > 0" dark separator class="music-list-container">
-          <q-item v-for="track in filteredTracks" :key="track.id" clickable @click="playTrack(track)"
-            class="music-list-item">
+          <q-item
+            v-for="track in filteredTracks"
+            :key="track.id"
+            clickable
+            @click="playTrack(track)"
+            class="music-list-item"
+          >
             <q-item-section avatar>
               <q-avatar size="50px" rounded>
                 <img :src="getSmartCoverUrl(track)" :alt="track.title" @error="onCoverImageError" />
@@ -150,20 +211,37 @@
               <q-item-label class="text-white text-weight-medium">{{ track.title }}</q-item-label>
               <q-item-label caption class="text-grey-6">{{
                 track.artist || 'Unknown Artist'
-                }}</q-item-label>
+              }}</q-item-label>
             </q-item-section>
 
             <q-item-section side>
               <div class="row items-center q-gutter-sm">
                 <span class="text-caption text-grey-6">{{ formatDuration(track.duration) }}</span>
-                <q-btn flat round size="sm" icon="play_arrow" color="primary" @click.stop="playTrack(track)" />
+                <q-btn
+                  flat
+                  round
+                  size="sm"
+                  icon="play_arrow"
+                  color="primary"
+                  @click.stop="playTrack(track)"
+                />
                 <q-btn flat round size="sm" icon="more_vert" color="grey-6" @click.stop>
                   <q-menu>
-                    <q-list dense style="min-width: 150px">
+                    <q-list dense style="min-width: 180px">
                       <q-item clickable @click="playTrack(track)">
                         <q-item-section avatar><q-icon name="play_arrow" /></q-item-section>
-                        <q-item-section>Play</q-item-section>
+                        <q-item-section>Play Now</q-item-section>
                       </q-item>
+                      <q-separator />
+                      <q-item clickable @click="addTrackToQueue(track)">
+                        <q-item-section avatar><q-icon name="queue" /></q-item-section>
+                        <q-item-section>Add to Queue</q-item-section>
+                      </q-item>
+                      <q-item clickable @click="playTrackNext(track)">
+                        <q-item-section avatar><q-icon name="skip_next" /></q-item-section>
+                        <q-item-section>Play Next</q-item-section>
+                      </q-item>
+                      <q-separator />
                       <q-item clickable @click="addToFavorites(track)">
                         <q-item-section avatar><q-icon name="favorite" /></q-item-section>
                         <q-item-section>Add to Favorites</q-item-section>
@@ -172,9 +250,10 @@
                         <q-item-section avatar><q-icon name="playlist_add" /></q-item-section>
                         <q-item-section>Add to Playlist</q-item-section>
                       </q-item>
+                      <q-separator />
                       <q-item clickable @click="showTrackInfo(track)">
                         <q-item-section avatar><q-icon name="info" /></q-item-section>
-                        <q-item-section>Info</q-item-section>
+                        <q-item-section>Track Info</q-item-section>
                       </q-item>
                     </q-list>
                   </q-menu>
@@ -197,8 +276,15 @@
                 : 'Scan your music folder to import tracks'
             }}
           </p>
-          <q-btn v-if="!searchQuery" color="primary" label="Scan Music" icon="refresh" outline @click="scanMusic"
-            class="q-mt-md" />
+          <q-btn
+            v-if="!searchQuery"
+            color="primary"
+            label="Scan Music"
+            icon="refresh"
+            outline
+            @click="scanMusic"
+            class="q-mt-md"
+          />
         </div>
       </div>
     </section>
@@ -213,8 +299,12 @@
         <q-card-section v-if="selectedTrack" class="q-pt-none">
           <div class="row">
             <div class="col-4">
-              <q-img :src="getSmartCoverUrl(selectedTrack)" :alt="selectedTrack.title"
-                style="width: 100px; height: 100px" class="rounded-borders" />
+              <q-img
+                :src="getSmartCoverUrl(selectedTrack)"
+                :alt="selectedTrack.title"
+                style="width: 100px; height: 100px"
+                class="rounded-borders"
+              />
             </div>
             <div class="col-8 q-pl-md">
               <div class="text-subtitle1 text-weight-medium">{{ selectedTrack.title }}</div>
@@ -413,9 +503,26 @@ const addToFavorites = async (track: MusicTrack) => {
   }
 };
 
-const handleMenuAction = (track: MusicTrack) => {
-  // 这个方法处理菜单操作，但实际的菜单项在 MusicCard 内部处理
-  console.log('Menu action for track:', track.title);
+const addTrackToQueue = (track: MusicTrack) => {
+  console.log(`[AllMusicPage] Adding track to queue: ${track.title}`);
+  musicStore.addToQueue(track);
+
+  $q.notify({
+    message: `"${track.title}" added to queue`,
+    icon: 'queue',
+    color: 'positive',
+  });
+};
+
+const playTrackNext = (track: MusicTrack) => {
+  console.log(`[AllMusicPage] Setting track to play next: ${track.title}`);
+  musicStore.addToQueueNext(track);
+
+  $q.notify({
+    message: `"${track.title}" will play next`,
+    icon: 'skip_next',
+    color: 'secondary',
+  });
 };
 
 const showTrackInfo = (track: MusicTrack) => {
@@ -516,66 +623,65 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .all-music-page {
-  background-color: #1a1a1d; // osu!lazer 风格的深色背景
-  color: #f0f0f0; // 浅色文字，确保可读性
-  min-height: 100vh; // 确保页面至少占满整个视口高度
+  background-color: #0a0a0f; // 与 PlaylistPage 一致的深蓝背景
+  color: #c4c9d4; // 与 PlaylistPage 一致的文字颜色
+  min-height: 100vh;
   padding: 24px;
 
   .page-header {
     .title-section {
       .text-h4 {
-        font-weight: 700; // 加粗字体
+        font-weight: 700;
         // osu!lazer 风格的粉紫渐变
         background: linear-gradient(135deg, #ff69b4, #c77dff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        display: inline-flex; // 改为 inline-flex 使渐变适应文本宽度
+        display: inline-flex;
         align-items: center;
-        padding-bottom: 4px; // 为渐变文本添加一点呼吸空间
+        padding-bottom: 4px;
 
         .q-icon {
-          // 确保图标颜色与渐变协调或使用纯白色
-          color: #f0f0f0;
-          margin-right: 12px; // 调整图标与文字间距
-          font-size: 2.5rem; // 稍微调整图标大小
+          color: #c4c9d4; // 与 PlaylistPage 一致的图标颜色
+          margin-right: 12px;
+          font-size: 2.5rem;
         }
       }
 
       // 更新分隔线样式
       .q-separator {
-        background-color: rgba(255, 255, 255, 0.15); // 更亮的分割线
-        height: 1px; // 更细的分割线
+        background-color: rgba(196, 201, 212, 0.2); // 使用主文字颜色的透明版本
+        height: 1px;
       }
     }
 
     .stats-cards {
       .stat-card {
-        background: rgba(40, 40, 45, 0.7); // 更深邃的半透明背景
+        background: rgba(255, 255, 255, 0.05); // 与 PlaylistPage 完全一致的卡片背景
         backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.15); // 细致的边框
-        border-radius: 8px; // 稍小的圆角，更锐利
+        border: 1px solid rgba(255, 255, 255, 0.1); // 与 PlaylistPage 一致的边框
+        border-radius: 8px;
         transition: all 0.25s ease-in-out;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 
         .q-icon {
-          color: #ff69b4; // 使用 lazer 主题粉色作为图标强调色
+          color: #ff69b4;
         }
 
         .text-h6 {
-          color: #f0f0f0; // 确保数字清晰
+          color: #c4c9d4; // 与 PlaylistPage 一致的主文字颜色
           font-weight: 600;
         }
 
         .text-caption {
-          color: #a0a0a0; // 标签使用柔和的灰色
+          color: #8b92b8; // 与 PlaylistPage 一致的次要文字颜色
         }
 
         &:hover {
           transform: translateY(-3px) scale(1.02);
           box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-          background: rgba(50, 50, 55, 0.8);
-          border-color: rgba(255, 105, 180, 0.5); // 悬停时边框高亮
+          background: #1c2749; // 悬停时稍微亮一点的蓝色
+          border-color: rgba(255, 105, 180, 0.5);
         }
       }
     }
@@ -585,7 +691,7 @@ onMounted(() => {
     padding: 16px 0;
 
     h2 {
-      color: #e0e0e0; // 柔和的白色标题
+      color: #c4c9d4; // 与 PlaylistPage 一致的标题颜色
       font-weight: 600;
       margin-bottom: 0;
     }
@@ -665,7 +771,6 @@ onMounted(() => {
 
     // 原有的 .q-btn 样式，现在主要作为其他按钮的默认或被覆盖
     .q-btn {
-
       // &.q-btn--outline 相关的样式可以保留，以备其他地方使用
       &.q-btn--outline {
         border-color: rgba(255, 105, 180, 0.7);
@@ -697,7 +802,7 @@ onMounted(() => {
     .q-input,
     .q-select {
       :deep(.q-field__control) {
-        background: rgba(30, 30, 33, 0.8); // 更深的输入框背景
+        background: #16213e; // 与 PlaylistPage 一致的输入框背景
         border-radius: 6px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: #f0f0f0;
@@ -712,11 +817,11 @@ onMounted(() => {
       :deep(.q-field__native),
       :deep(.q-field__label),
       :deep(.q-select__display-value) {
-        color: #e0e0e0; // 确保文本颜色对比度
+        color: #c4c9d4; // 与 PlaylistPage 一致的文字颜色
       }
 
       :deep(.q-field__prepend .q-icon) {
-        color: #a0a0a0; // 图标颜色
+        color: #8b92b8; // 与 PlaylistPage 一致的图标颜色
       }
     }
 
@@ -749,15 +854,15 @@ onMounted(() => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #a0a0a0; // 柔和的文本颜色
+    color: #8b92b8; // 与 PlaylistPage 一致的次要文字颜色
 
     .q-icon {
-      font-size: 4rem; // 统一图标大小
+      font-size: 4rem;
       margin-bottom: 16px;
     }
 
     h5 {
-      color: #e0e0e0; // 标题使用更亮的颜色
+      color: #c4c9d4; // 与 PlaylistPage 一致的主文字颜色
       font-weight: 600;
       margin-top: 8px;
       margin-bottom: 8px;
@@ -834,44 +939,44 @@ onMounted(() => {
     }
 
     .music-list-item {
-      background: rgba(35, 35, 40, 0.6); // 列表项背景
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #16213e; // 与 PlaylistPage 一致的列表项背景
+      border: 1px solid rgba(196, 201, 212, 0.15); // 使用主文字颜色的透明边框
       border-radius: 6px;
-      margin-bottom: 8px; // 列表项间距
+      margin-bottom: 8px;
       padding: 10px 16px;
       transition: all 0.2s ease-in-out;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 
       &:hover {
-        background: rgba(50, 50, 55, 0.8);
+        background: #1c2749; // 悬停时稍微亮一点的蓝色
         border-color: rgba(255, 105, 180, 0.4);
         transform: translateY(-1px) scale(1.01);
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
       }
 
       .q-item__section--avatar .q-avatar {
-        border-radius: 4px; // 头像圆角
+        border-radius: 4px;
       }
 
       .q-item__label.text-white {
-        color: #e0e0e0 !important; // 确保标题颜色
+        color: #c4c9d4 !important; // 与 PlaylistPage 一致的标题颜色
         font-weight: 500;
       }
 
       .q-item__label--caption {
-        color: #909090 !important; // 副标题颜色
+        color: #8b92b8 !important; // 与 PlaylistPage 一致的副标题颜色
       }
 
       .q-btn {
-        color: #b0b0b0; // 按钮默认颜色
+        color: #8b92b8; // 与 PlaylistPage 一致的按钮默认颜色
 
         &:hover {
-          color: #ff69b4; // 按钮悬停时高亮
+          color: #ff69b4;
         }
       }
 
       .text-caption.text-grey-6 {
-        color: #888 !important; // 时长文本颜色
+        color: #8b92b8 !important; // 与 PlaylistPage 一致的时长文本颜色
       }
     }
   }
@@ -879,32 +984,32 @@ onMounted(() => {
   // 歌曲信息对话框样式
   :deep(.q-dialog) {
     .q-card {
-      background-color: #2c2c32; // 深色对话框背景
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background-color: #16213e; // 与 PlaylistPage 一致的对话框背景
+      border: 1px solid rgba(196, 201, 212, 0.15); // 使用主文字颜色的透明边框
       border-radius: 8px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      color: #e0e0e0;
+      color: #c4c9d4; // 与 PlaylistPage 一致的文字颜色
 
       .q-card__section--title,
       .text-h6 {
-        color: #f0f0f0;
+        color: #c4c9d4; // 与 PlaylistPage 一致的标题颜色
         font-weight: 600;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(196, 201, 212, 0.2); // 使用主文字颜色的透明分隔线
         padding-bottom: 12px;
       }
 
       .q-card__section {
         .text-subtitle1 {
-          color: #f5f5f5;
+          color: #c4c9d4; // 与 PlaylistPage 一致的主文字颜色
           font-weight: 500;
         }
 
         .text-body2 {
-          color: #b0b0b0;
+          color: #8b92b8; // 与 PlaylistPage 一致的次要文字颜色
         }
 
         .text-caption {
-          color: #909090;
+          color: #8b92b8; // 与 PlaylistPage 一致的说明文字颜色
         }
 
         .q-img {
@@ -913,20 +1018,20 @@ onMounted(() => {
       }
 
       .q-card__actions {
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid rgba(196, 201, 212, 0.2); // 使用主文字颜色的透明分隔线
         padding-top: 12px;
         background-color: rgba(0, 0, 0, 0.1);
 
         .q-btn--flat {
-          color: #b0b0b0;
+          color: #8b92b8; // 与 PlaylistPage 一致的按钮颜色
 
           &:hover {
-            color: #f0f0f0;
-            background-color: rgba(255, 255, 255, 0.05);
+            color: #c4c9d4;
+            background-color: rgba(196, 201, 212, 0.1);
           }
         }
 
-        .q-btn[color="primary"] {
+        .q-btn[color='primary'] {
           background: linear-gradient(135deg, #ff69b4, #c77dff);
           color: white;
           border-radius: 6px;
@@ -1015,7 +1120,6 @@ onMounted(() => {
 
   // 原有的 .q-btn 样式，现在主要作为其他按钮的默认或被覆盖
   .q-btn {
-
     // &.q-btn--outline 相关的样式可以保留，以备其他地方使用
     &.q-btn--outline {
       border-color: rgba(255, 105, 180, 0.7);
@@ -1040,6 +1144,38 @@ onMounted(() => {
       // 确保这里的 border-radius 不会覆盖 .lazer-action-btn 的设置
       border-radius: 6px;
     }
+  }
+}
+
+// 菜单样式（用于列表视图的次级菜单）
+:deep(.q-menu) {
+  .q-list {
+    background: rgba(40, 40, 50, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 4px 0;
+  }
+
+  .q-item {
+    color: #ffffff;
+    border-radius: 6px;
+    margin: 2px 6px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 105, 180, 0.15);
+      color: #ff69b4;
+    }
+
+    .q-icon {
+      color: inherit;
+    }
+  }
+
+  .q-separator {
+    background: rgba(255, 255, 255, 0.1);
+    margin: 4px 0;
   }
 }
 

@@ -57,6 +57,14 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/SettingsPage.vue'), // 你需要创建这个页面
         meta: { title: 'Settings', icon: 'settings' },
       },
+      // 单个播放列表详情页
+      {
+        path: 'playlist/:id', // 访问 '/playlist/歌单ID'
+        name: 'playlist',
+        component: () => import('pages/PlaylistPage.vue'),
+        meta: { title: 'Playlist', icon: 'queue_music' },
+        props: true, // 使路由参数作为props传递给组件
+      },
       // 认证设置页
       {
         path: 'auth-settings', // 访问 '/auth-settings'

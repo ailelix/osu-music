@@ -3,11 +3,20 @@
     <!-- 胶囊切换栏 -->
     <div class="capsule-switch-bar q-mb-xl flex flex-center">
       <div class="capsule-switch">
-        <q-btn-toggle v-model="activeTab" toggle-color="primary" color="dark" text-color="primary" unelevated rounded
-          spread class="capsule-toggle" :options="[
+        <q-btn-toggle
+          v-model="activeTab"
+          toggle-color="primary"
+          color="dark"
+          text-color="primary"
+          unelevated
+          rounded
+          spread
+          class="capsule-toggle"
+          :options="[
             { label: 'Playlists', value: 'playlists' },
-            { label: 'All Music', value: 'allmusic' }
-          ]" />
+            { label: 'All Music', value: 'allmusic' },
+          ]"
+        />
         <!-- Removed @update:model-value="onTabChange" for now -->
       </div>
     </div>
@@ -72,13 +81,17 @@
             <div class="actions-bar q-mb-lg">
               <div class="row items-center justify-between">
                 <div class="col-auto">
-                  <h2 class="text-h5 text-weight-medium q-mb-none">
-                    My Playlists
-                  </h2>
+                  <h2 class="text-h5 text-weight-medium q-mb-none">My Playlists</h2>
                 </div>
                 <div class="col-auto">
-                  <q-btn color="primary" icon="add" label="Create Playlist" unelevated rounded
-                    @click="showCreatePlaylistDialog = true" />
+                  <q-btn
+                    color="primary"
+                    icon="add"
+                    label="Create Playlist"
+                    unelevated
+                    rounded
+                    @click="showCreatePlaylistDialog = true"
+                  />
                 </div>
               </div>
             </div>
@@ -91,16 +104,32 @@
               <q-icon name="error_outline" size="4rem" color="negative" />
               <h5 class="text-negative q-mt-md">Loading Failed</h5>
               <p class="text-grey-6">{{ playlistStore.error }}</p>
-              <q-btn color="primary" label="Retry" icon="refresh" outline @click="loadPlaylists" class="q-mt-md" />
+              <q-btn
+                color="primary"
+                label="Retry"
+                icon="refresh"
+                outline
+                @click="loadPlaylists"
+                class="q-mt-md"
+              />
             </div>
             <div v-else class="playlists-grid">
               <div v-if="playlistStore.allPlaylistsSorted.length > 0" class="all-playlists">
                 <div class="row q-col-gutter-lg">
-                  <div v-for="playlist in playlistStore.allPlaylistsSorted" :key="playlist.id"
-                    class="col-12 col-sm-6 col-md-4 col-lg-3">
-                    <PlaylistCard :playlist="playlist" @click="openPlaylistDetails(playlist)"
-                      @play="playPlaylist(playlist)" @view="openPlaylistDetails(playlist)"
-                      @delete="confirmDeletePlaylist(playlist)" />
+                  <div
+                    v-for="playlist in playlistStore.allPlaylistsSorted"
+                    :key="playlist.id"
+                    class="col-12 col-sm-6 col-md-4 col-lg-3"
+                  >
+                    <PlaylistCard
+                      :playlist="playlist"
+                      @click="openPlaylistDetails(playlist)"
+                      @play="playPlaylist(playlist)"
+                      @view="openPlaylistDetails(playlist)"
+                      @delete="confirmDeletePlaylist(playlist)"
+                      @addToQueue="addPlaylistToQueue(playlist)"
+                      @playNext="playPlaylistNext(playlist)"
+                    />
                   </div>
                 </div>
               </div>
@@ -108,8 +137,15 @@
                 <q-icon name="queue_music" size="5rem" color="grey-5" />
                 <h5 class="text-grey-5 q-mt-md">No playlists yet</h5>
                 <p class="text-grey-6">Create your first playlist to start collecting music!</p>
-                <q-btn color="primary" label="Create Playlist" icon="add" unelevated rounded
-                  @click="showCreatePlaylistDialog = true" class="q-mt-md" />
+                <q-btn
+                  color="primary"
+                  label="Create Playlist"
+                  icon="add"
+                  unelevated
+                  rounded
+                  @click="showCreatePlaylistDialog = true"
+                  class="q-mt-md"
+                />
               </div>
             </div>
           </div>
@@ -130,15 +166,31 @@
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <q-input v-model="newPlaylistName" label="Playlist Name" outlined autofocus
-            :rules="[val => !!val || 'Please enter playlist name']" />
-          <q-input v-model="newPlaylistDescription" label="Description (Optional)" type="textarea" outlined rows="3"
-            class="q-mt-md" />
+          <q-input
+            v-model="newPlaylistName"
+            label="Playlist Name"
+            outlined
+            autofocus
+            :rules="[(val) => !!val || 'Please enter playlist name']"
+          />
+          <q-input
+            v-model="newPlaylistDescription"
+            label="Description (Optional)"
+            type="textarea"
+            outlined
+            rows="3"
+            class="q-mt-md"
+          />
         </q-card-section>
 
         <q-card-actions align="right">
           <q-btn flat label="Cancel" @click="closeCreatePlaylistDialog" />
-          <q-btn color="primary" label="Create" :disable="!newPlaylistName.trim()" @click="createNewPlaylist" />
+          <q-btn
+            color="primary"
+            label="Create"
+            :disable="!newPlaylistName.trim()"
+            @click="createNewPlaylist"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -168,12 +220,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'; // Removed unused 'watch'
 import { useQuasar } from 'quasar';
+import { useRouter } from 'vue-router';
 import { usePlaylistStore, type Playlist } from 'src/stores/playlistStore';
+import { useMusicStore, type MusicTrack } from 'src/stores/musicStore';
 import PlaylistCard from 'src/components/PlaylistCard.vue';
 import AllMusicPage from 'src/pages/AllMusicPage.vue';
 
 const $q = useQuasar();
+const router = useRouter();
 const playlistStore = usePlaylistStore();
+const musicStore = useMusicStore();
 
 const activeTab = ref('playlists');
 // const transitionName = ref('slide-left'); // Commented out for troubleshooting
@@ -195,24 +251,140 @@ const loadPlaylists = async () => {
 
 const openPlaylistDetails = (playlist: Playlist) => {
   console.log('Opening playlist details:', playlist.name);
+
+  // 导航到具体歌单详情页面
+  router.push({ name: 'playlist', params: { id: playlist.id } });
+
   $q.notify({
-    message: `Open playlist: ${playlist.name}`,
-    icon: 'open_in_new',
-    color: 'info',
+    message: `Opening "${playlist.name}" playlist`,
+    icon: 'queue_music',
+    color: 'positive',
+    timeout: 2000,
   });
-  // TODO: 导航到歌单详情页面
-  // router.push({ name: 'playlistDetails', params: { id: playlist.id } });
 };
 
 const playPlaylist = (playlist: Playlist) => {
   console.log('Playing playlist:', playlist.name);
+  console.log('Playlist tracks:', playlist.tracks);
+  console.log('Total tracks in music store:', musicStore.totalTracks);
+
+  if (!playlist.tracks?.length) {
+    $q.notify({
+      message: 'Playlist is empty',
+      icon: 'warning',
+      color: 'warning',
+    });
+    return;
+  }
+
+  // 使用增强的 findTrackByBeatmapsetId 方法查找实际音频文件
+  const musicTracks: MusicTrack[] = playlist.tracks
+    .map((track) => {
+      console.log(`Looking for track with beatmapsetId: ${track.beatmapsetId}`);
+      const foundTrack = musicStore.findTrackByBeatmapsetId(track.beatmapsetId);
+      console.log(`Found track:`, foundTrack ? foundTrack.fileName : 'null');
+      return foundTrack;
+    })
+    .filter((track) => track !== null) as MusicTrack[];
+
+  console.log(
+    `Found ${musicTracks.length} audio files out of ${playlist.tracks.length} playlist tracks`,
+  );
+
+  if (musicTracks.length === 0) {
+    $q.notify({
+      message: 'No audio files found for this playlist',
+      icon: 'warning',
+      color: 'warning',
+    });
+    return;
+  }
+
+  // 清空播放队列并加载新的播放列表
+  musicStore.setPlayQueue(musicTracks, 0);
+
+  // 开始播放第一首歌
+  if (musicTracks[0]) {
+    musicStore.playTrack(musicTracks[0]);
+  }
+
   playlistStore.setCurrentPlaylist(playlist);
+
   $q.notify({
-    message: `Now playing: ${playlist.name}`,
+    message: `Now playing: ${playlist.name} (${musicTracks.length} tracks found)`,
     icon: 'play_arrow',
     color: 'positive',
   });
-  // TODO: 实现播放逻辑
+};
+
+const addPlaylistToQueue = (playlist: Playlist) => {
+  console.log(`[LibraryPage] Adding playlist to queue: ${playlist.name}`);
+  if (!playlist.tracks?.length) {
+    $q.notify({
+      message: 'Playlist is empty',
+      icon: 'warning',
+      color: 'warning',
+    });
+    return;
+  }
+
+  // 使用增强的 findTrackByBeatmapsetId 方法查找实际音频文件
+  const musicTracks: MusicTrack[] = playlist.tracks
+    .map((track) => musicStore.findTrackByBeatmapsetId(track.beatmapsetId))
+    .filter((track) => track !== null) as MusicTrack[];
+
+  if (musicTracks.length === 0) {
+    $q.notify({
+      message: 'No audio files found for this playlist',
+      icon: 'warning',
+      color: 'warning',
+    });
+    return;
+  }
+
+  // 添加到播放队列末尾
+  musicTracks.forEach((track) => musicStore.addToQueue(track));
+
+  $q.notify({
+    message: `Added "${playlist.name}" to queue (${musicTracks.length} tracks found)`,
+    icon: 'queue',
+    color: 'positive',
+  });
+};
+
+const playPlaylistNext = (playlist: Playlist) => {
+  console.log(`[LibraryPage] Setting playlist to play next: ${playlist.name}`);
+  if (!playlist.tracks?.length) {
+    $q.notify({
+      message: 'Playlist is empty',
+      icon: 'warning',
+      color: 'warning',
+    });
+    return;
+  }
+
+  // 使用增强的 findTrackByBeatmapsetId 方法查找实际音频文件
+  const musicTracks: MusicTrack[] = playlist.tracks
+    .map((track) => musicStore.findTrackByBeatmapsetId(track.beatmapsetId))
+    .filter((track) => track !== null) as MusicTrack[];
+
+  if (musicTracks.length === 0) {
+    $q.notify({
+      message: 'No audio files found for this playlist',
+      icon: 'warning',
+      color: 'warning',
+    });
+    return;
+  }
+
+  // 添加到当前播放歌曲之后
+  musicTracks.forEach((track) => musicStore.addToQueueNext(track));
+
+  $q.notify({
+    message: `"${playlist.name}" will play next (${musicTracks.length} tracks found)`,
+    icon: 'skip_next',
+    color: 'secondary',
+  });
 };
 
 const confirmDeletePlaylist = (playlist: Playlist) => {
@@ -256,7 +428,7 @@ const createNewPlaylist = async () => {
     const newPlaylist = await playlistStore.createPlaylist(
       newPlaylistName.value.trim(),
       newPlaylistDescription.value.trim(),
-      []
+      [],
     );
     $q.notify({
       message: `Playlist created: ${newPlaylist.name}`,
@@ -297,8 +469,21 @@ const closeCreatePlaylistDialog = () => {
 //   }
 // }, { immediate: true });
 
-onMounted(() => {
+onMounted(async () => {
   void loadPlaylists();
+
+  // 自动扫描音乐文件（如果还没有扫描过）
+  if (musicStore.totalTracks === 0) {
+    console.log('[LibraryPage] No tracks found, scanning music folder...');
+    try {
+      await musicStore.scanMusicFiles();
+      console.log(`[LibraryPage] Scan completed. Found ${musicStore.totalTracks} tracks`);
+    } catch (error) {
+      console.error('[LibraryPage] Failed to scan music files:', error);
+    }
+  } else {
+    console.log(`[LibraryPage] Already have ${musicStore.totalTracks} tracks in library`);
+  }
 });
 </script>
 
@@ -326,7 +511,9 @@ onMounted(() => {
       min-width: 120px;
       font-weight: 600;
       font-size: 1.1rem;
-      transition: background 0.2s, color 0.2s;
+      transition:
+        background 0.2s,
+        color 0.2s;
     }
   }
 
@@ -384,7 +571,6 @@ onMounted(() => {
   }
 
   .content-area {
-
     .playlists-content,
     .allmusic-content {
       min-height: 400px;

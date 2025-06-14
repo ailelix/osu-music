@@ -4,10 +4,22 @@
       <!-- 封面图片 -->
       <div class="cover-section">
         <div class="cover-image-container">
-          <img :src="smartCoverUrl" :alt="track.title" class="cover-image" @error="onImageError" draggable="false" />
+          <img
+            :src="smartCoverUrl"
+            :alt="track.title"
+            class="cover-image"
+            @error="onImageError"
+            draggable="false"
+          />
           <div class="play-overlay">
-            <q-btn round color="primary" icon="play_arrow" size="md" @click.stop="$emit('play', track)"
-              class="play-button" />
+            <q-btn
+              round
+              color="primary"
+              icon="play_arrow"
+              size="md"
+              @click.stop="$emit('play', track)"
+              class="play-button"
+            />
           </div>
         </div>
       </div>
@@ -30,44 +42,81 @@
           </div>
           <div class="actions row items-center">
             <!-- 快速收藏按钮 -->
-            <q-btn flat round size="sm" :icon="isInFavorites ? 'favorite' : 'favorite_border'"
-              :color="isInFavorites ? 'pink' : 'grey-6'" @click.stop="toggleFavorite" :loading="isAddingToFavorites"
-              class="q-mr-xs">
-              <q-tooltip>{{ isInFavorites ? 'Remove from Favorites' : 'Add to Favorites' }}</q-tooltip>
+            <q-btn
+              flat
+              round
+              size="sm"
+              :icon="isInFavorites ? 'favorite' : 'favorite_border'"
+              :color="isInFavorites ? 'pink' : 'grey-6'"
+              @click.stop="toggleFavorite"
+              :loading="isAddingToFavorites"
+              class="q-mr-xs"
+            >
+              <q-tooltip>{{
+                isInFavorites ? 'Remove from Favorites' : 'Add to Favorites'
+              }}</q-tooltip>
             </q-btn>
 
             <!-- 快速添加到播放列表按钮 -->
-            <q-btn flat round size="sm" icon="playlist_add" color="grey-6" @click.stop="openAddToPlaylistDialog"
-              class="q-mr-xs">
+            <q-btn
+              flat
+              round
+              size="sm"
+              icon="playlist_add"
+              color="grey-6"
+              @click.stop="openAddToPlaylistDialog"
+              class="q-mr-xs"
+            >
               <q-tooltip>Add to Playlist</q-tooltip>
             </q-btn>
 
-            <!-- 更多选项菜单 (REMOVED) -->
-            <!--
-            <q-btn flat round size="sm" icon="more_vert" color="grey-6" @click.stop="$emit('menu', track)">
-              <q-menu>
-                <q-list dense style="min-width: 150px">
-                  <q-item clickable @click="$emit('play', track)">
+            <!-- 更多选项菜单 -->
+            <q-btn
+              flat
+              round
+              size="sm"
+              icon="more_vert"
+              color="grey-6"
+              @click.stop="handleMenuButtonClick"
+            >
+              <q-menu v-model="showMenu" class="track-menu">
+                <q-list dense style="min-width: 180px">
+                  <q-item clickable v-close-popup @click="handlePlayNow">
                     <q-item-section avatar>
                       <q-icon name="play_arrow" />
                     </q-item-section>
                     <q-item-section>Play Now</q-item-section>
                   </q-item>
                   <q-separator />
-                  <q-item clickable @click="toggleFavorite">
+                  <q-item clickable v-close-popup @click="handleAddToQueue">
+                    <q-item-section avatar>
+                      <q-icon name="queue" />
+                    </q-item-section>
+                    <q-item-section>Add to Queue</q-item-section>
+                  </q-item>
+                  <q-item clickable v-close-popup @click="handlePlayNext">
+                    <q-item-section avatar>
+                      <q-icon name="skip_next" />
+                    </q-item-section>
+                    <q-item-section>Play Next</q-item-section>
+                  </q-item>
+                  <q-separator />
+                  <q-item clickable v-close-popup @click="toggleFavorite">
                     <q-item-section avatar>
                       <q-icon :name="isInFavorites ? 'favorite' : 'favorite_border'" />
                     </q-item-section>
-                    <q-item-section>{{ isInFavorites ? 'Remove from Favorites' : 'Add to Favorites' }}</q-item-section>
+                    <q-item-section>{{
+                      isInFavorites ? 'Remove from Favorites' : 'Add to Favorites'
+                    }}</q-item-section>
                   </q-item>
-                  <q-item clickable @click="openAddToPlaylistDialog">
+                  <q-item clickable v-close-popup @click="openAddToPlaylistDialog">
                     <q-item-section avatar>
                       <q-icon name="playlist_add" />
                     </q-item-section>
                     <q-item-section>Add to Playlist</q-item-section>
                   </q-item>
                   <q-separator />
-                  <q-item clickable @click="$emit('showInfo', track)">
+                  <q-item clickable v-close-popup @click="handleShowInfo">
                     <q-item-section avatar>
                       <q-icon name="info" />
                     </q-item-section>
@@ -76,7 +125,6 @@
                 </q-list>
               </q-menu>
             </q-btn>
-            -->
           </div>
         </div>
       </div>
@@ -97,12 +145,13 @@ const props = defineProps<{
 }>();
 
 // Events
-defineEmits<{
+const emit = defineEmits<{
   click: [track: MusicTrack];
   play: [track: MusicTrack];
-  // menu: [track: MusicTrack]; // Removed
   addToPlaylist: [track: MusicTrack];
   showInfo: [track: MusicTrack];
+  addToQueue: [track: MusicTrack];
+  playNext: [track: MusicTrack];
 }>();
 
 // Composables
@@ -111,6 +160,7 @@ const playlistStore = usePlaylistStore();
 
 // State
 const isAddingToFavorites = ref(false);
+const showMenu = ref(false);
 
 // 使用 osu! ppy 的默认封面
 const defaultCover = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg.png';
@@ -135,7 +185,7 @@ const smartCoverUrl = computed(() => {
 const isInFavorites = computed(() => {
   const favPlaylist = playlistStore.defaultPlaylist;
   if (!favPlaylist) return false;
-  return favPlaylist.tracks.some(t => t.beatmapsetId === Number(props.track.id));
+  return favPlaylist.tracks.some((t) => t.beatmapsetId === Number(props.track.id));
 });
 
 const coverSrc = ref(smartCoverUrl.value);
@@ -241,13 +291,39 @@ const formatDuration = (seconds?: number): string => {
   const remainingSeconds = seconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
+
+// 事件处理函数（带日志）
+const handleMenuButtonClick = () => {
+  console.log(`[MusicCard] Menu button clicked for track: ${props.track.title}`);
+  showMenu.value = true;
+};
+
+const handlePlayNow = () => {
+  console.log(`[MusicCard] Play Now clicked for track: ${props.track.title}`);
+  emit('play', props.track);
+};
+
+const handleAddToQueue = () => {
+  console.log(`[MusicCard] Add to Queue clicked for track: ${props.track.title}`);
+  emit('addToQueue', props.track);
+};
+
+const handlePlayNext = () => {
+  console.log(`[MusicCard] Play Next clicked for track: ${props.track.title}`);
+  emit('playNext', props.track);
+};
+
+const handleShowInfo = () => {
+  console.log(`[MusicCard] Show Info clicked for track: ${props.track.title}`);
+  emit('showInfo', props.track);
+};
 </script>
 
 <style lang="scss" scoped>
 .music-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05); // 与 PlaylistPage 一致的卡片背景
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1); // 与 PlaylistPage 一致的边框
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -257,7 +333,8 @@ const formatDuration = (seconds?: number): string => {
   &:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.08); // 悬停时稍微亮一点
+    border-color: rgba(255, 105, 180, 0.3); // 悬停时边框高亮
 
     .play-overlay {
       opacity: 1;
@@ -328,7 +405,7 @@ const formatDuration = (seconds?: number): string => {
 
     .track-info {
       .track-title {
-        color: white;
+        color: #ffffff; // 与 PlaylistPage 一致的主文字颜色
         font-size: 14px;
         line-height: 1.3;
         overflow: hidden;
@@ -341,6 +418,7 @@ const formatDuration = (seconds?: number): string => {
       }
 
       .track-artist {
+        color: #8b92b8; // 与 PlaylistPage 一致的次要文字颜色
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -351,10 +429,56 @@ const formatDuration = (seconds?: number): string => {
     .track-meta {
       margin-top: 8px;
 
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        .q-btn {
+          z-index: 10; // 确保按钮在上层
+          position: relative; // 确保 z-index 生效
+        }
+      }
+
       .duration {
+        color: #8b92b8; // 与 PlaylistPage 一致的次要文字颜色
         font-family: 'JetBrains Mono', monospace;
       }
     }
+  }
+}
+
+// 菜单样式
+.track-menu {
+  z-index: 9999; // 确保菜单在最顶层
+
+  .q-list {
+    background: rgba(40, 40, 50, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 4px 0;
+  }
+
+  .q-item {
+    color: #ffffff;
+    border-radius: 6px;
+    margin: 2px 6px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 105, 180, 0.15);
+      color: #ff69b4;
+    }
+
+    .q-icon {
+      color: inherit;
+    }
+  }
+
+  .q-separator {
+    background: rgba(255, 255, 255, 0.1);
+    margin: 4px 0;
   }
 }
 

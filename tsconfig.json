@@ -3,5 +3,5 @@
   "compilerOptions": {
     "noImplicitAny": false
   },
-  "include": ["src/**/*", "src-electron/**/*"]
+  "include": ["src/**/*", "src-electron/**/*", "vite.config.ts", "quasar.config.ts", "*.d.ts"]
 }
