@@ -80,42 +80,23 @@
         size="sm"
         @click.stop="$emit('play')"
       />
-      <q-btn flat color="primary" icon="more_vert" size="sm" @click.stop="handleMenuButtonClick">
-        <q-menu v-model="showMenu" class="playlist-menu">
-          <q-list dense>
-            <q-item clickable v-close-popup @click="handleViewPlaylist">
-              <q-item-section avatar>
-                <q-icon name="open_in_new" />
-              </q-item-section>
-              <q-item-section>View Playlist</q-item-section>
-            </q-item>
-            <q-item clickable v-close-popup @click="handleAddToQueue">
-              <q-item-section avatar>
-                <q-icon name="queue" />
-              </q-item-section>
-              <q-item-section>Add to Queue</q-item-section>
-            </q-item>
-            <q-item clickable v-close-popup @click="handlePlayNext">
-              <q-item-section avatar>
-                <q-icon name="skip_next" />
-              </q-item-section>
-              <q-item-section>Play Next</q-item-section>
-            </q-item>
-            <q-separator v-if="!playlist.isDefault" />
-            <q-item
-              v-if="!playlist.isDefault"
-              clickable
-              v-close-popup
-              @click="handleDeletePlaylist"
-            >
-              <q-item-section avatar>
-                <q-icon name="delete" color="negative" />
-              </q-item-section>
-              <q-item-section>Delete Playlist</q-item-section>
-            </q-item>
-          </q-list>
-        </q-menu>
-      </q-btn>
+      <q-btn
+        flat
+        color="secondary"
+        icon="queue"
+        label="Add to Queue"
+        size="sm"
+        @click.stop="handleAddToQueue"
+      />
+      <q-btn
+        v-if="!playlist.isDefault"
+        flat
+        color="negative"
+        icon="delete"
+        label="Delete"
+        size="sm"
+        @click.stop="handleDeletePlaylist"
+      />
     </q-card-actions>
   </q-card>
 </template>
@@ -125,7 +106,6 @@ import { computed } from 'vue';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import type { Playlist } from 'src/stores/playlistStore';
-import { ref } from 'vue';
 
 interface Props {
   playlist: Playlist;
@@ -139,33 +119,14 @@ const emit = defineEmits<{
   view: [];
   delete: [];
   addToQueue: [];
-  playNext: [];
 }>();
 
 const defaultCover = '/icons/favicon-128x128.png';
 
-// 响应式状态
-const showMenu = ref(false);
-
 // 事件处理函数（带日志）
-const handleMenuButtonClick = () => {
-  console.log(`[PlaylistCard] Menu button clicked for playlist: ${props.playlist.name}`);
-  showMenu.value = true;
-};
-
-const handleViewPlaylist = () => {
-  console.log(`[PlaylistCard] View Playlist clicked for: ${props.playlist.name}`);
-  emit('view');
-};
-
 const handleAddToQueue = () => {
   console.log(`[PlaylistCard] Add to Queue clicked for: ${props.playlist.name}`);
   emit('addToQueue');
-};
-
-const handlePlayNext = () => {
-  console.log(`[PlaylistCard] Play Next clicked for: ${props.playlist.name}`);
-  emit('playNext');
 };
 
 const handleDeletePlaylist = () => {
@@ -420,45 +381,22 @@ const formatUpdateTime = (dateString: string): string => {
         transform: translateY(0px);
       }
     }
-  }
-}
 
-// 菜单样式
-.playlist-menu {
-  z-index: 9999; // 确保菜单在最顶层
+    &[color='secondary'] {
+      color: #64b5f6;
+      background: transparent;
 
-  .q-list {
-    background: rgba(40, 40, 50, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 4px 0;
-    min-width: 180px;
-  }
+      &:hover {
+        background: rgba(100, 181, 246, 0.15);
+        color: #42a5f5;
+        transform: translateY(-1px);
+      }
 
-  .q-item {
-    color: #ffffff;
-    border-radius: 6px;
-    margin: 2px 6px;
-    transition: all 0.2s ease;
-
-    &:hover {
-      background: rgba(255, 105, 180, 0.15);
-      color: #ff69b4;
+      &:active {
+        background: rgba(100, 181, 246, 0.2);
+        transform: translateY(0px);
+      }
     }
-
-    .q-icon {
-      color: inherit;
-    }
-
-    &[color='negative'] .q-icon {
-      color: #ff7675;
-    }
-  }
-
-  .q-separator {
-    background: rgba(255, 255, 255, 0.1);
-    margin: 4px 0;
   }
 }
 
@@ -478,9 +416,15 @@ const formatUpdateTime = (dateString: string): string => {
     }
 
     .card-actions {
+      padding: 8px 12px;
+      flex-wrap: wrap;
+      gap: 4px;
+
       .q-btn {
         padding: 3px 8px;
-        font-size: 11px;
+        font-size: 10px;
+        min-width: auto;
+        white-space: nowrap;
       }
     }
   }

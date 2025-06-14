@@ -131,29 +131,6 @@
           </q-card-section>
         </q-card>
       </div>
-
-      <!-- Navigation to General Settings -->
-      <div class="q-mt-xl">
-        <q-card class="settings-card" flat bordered>
-          <q-card-section>
-            <div class="text-h6">Other Settings</div>
-            <div class="text-caption text-grey-6 q-mt-xs">
-              Configure general application preferences.
-            </div>
-          </q-card-section>
-          <q-separator dark />
-          <q-card-section>
-            <q-btn
-              label="Go to General Settings"
-              color="secondary"
-              icon="settings"
-              @click="goToGeneralSettings"
-              class="full-width"
-              unelevated
-            />
-          </q-card-section>
-        </q-card>
-      </div>
     </div>
   </q-page>
 </template>
@@ -244,10 +221,6 @@ function handleLogout() {
   authStore.logout();
   $q.notify({ type: 'info', message: 'Successfully logged out from Osu!' });
   router.push('/').catch((err) => console.error('Logout navigation error:', err));
-}
-
-function goToGeneralSettings() {
-  router.push({ name: 'settings' }).catch(console.error);
 }
 </script>
 

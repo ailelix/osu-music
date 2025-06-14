@@ -307,7 +307,7 @@ const getRepeatIcon = (): string => {
   max-height: 100vh;
   width: 100vw;
   max-width: 100vw;
-  background: linear-gradient(135deg, #0c0c0c, #1a1a2e, #16213e);
+  background: linear-gradient(135deg, #0c0c0c, #1a1a1a, #2a2a2a);
   position: absolute; // 改回 absolute，但保持页面级的固定定位
   top: 0;
   left: 0;

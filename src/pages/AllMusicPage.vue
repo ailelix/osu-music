@@ -60,7 +60,7 @@
           <h2 class="text-h5 text-weight-medium q-mb-none text-white">Music Library</h2>
         </div>
         <div class="col-auto">
-          <div class="row q-gutter-md">
+          <div class="row q-gutter-md no-wrap">
             <q-btn
               icon="refresh"
               label="Scan Music"
@@ -82,7 +82,7 @@
 
     <!-- 搜索和过滤 -->
     <section class="search-section q-mb-lg">
-      <div class="row q-gutter-md items-end">
+      <div class="row q-gutter-md items-end no-wrap">
         <div class="col">
           <q-input
             v-model="searchQuery"
@@ -108,16 +108,6 @@
             label="Sort by"
             style="min-width: 150px"
             @update:model-value="onSortChange"
-          />
-        </div>
-        <div class="col-auto">
-          <q-btn-toggle
-            v-model="viewMode"
-            :options="viewModeOptions"
-            color="primary"
-            outline
-            @update:model-value="onViewModeChange"
-            stretch
           />
         </div>
       </div>
@@ -156,12 +146,10 @@
           >
             <MusicCard
               :track="track"
-              @click="playTrack(track)"
               @play="playTrack(track)"
-              @addToPlaylist="handleAddToPlaylist(track)"
-              @showInfo="showTrackInfo(track)"
               @addToQueue="addTrackToQueue(track)"
               @playNext="playTrackNext(track)"
+              @delete="handleDeleteTrack(track)"
             />
           </div>
         </div>
@@ -225,35 +213,51 @@
                   color="primary"
                   @click.stop="playTrack(track)"
                 />
+                <!-- 次级菜单按钮 -->
                 <q-btn flat round size="sm" icon="more_vert" color="grey-6" @click.stop>
-                  <q-menu>
-                    <q-list dense style="min-width: 180px">
-                      <q-item clickable @click="playTrack(track)">
-                        <q-item-section avatar><q-icon name="play_arrow" /></q-item-section>
-                        <q-item-section>Play Now</q-item-section>
-                      </q-item>
-                      <q-separator />
+                  <q-menu auto-close>
+                    <q-list style="min-width: 180px">
                       <q-item clickable @click="addTrackToQueue(track)">
-                        <q-item-section avatar><q-icon name="queue" /></q-item-section>
+                        <q-item-section avatar>
+                          <q-icon name="queue" />
+                        </q-item-section>
                         <q-item-section>Add to Queue</q-item-section>
                       </q-item>
+
                       <q-item clickable @click="playTrackNext(track)">
-                        <q-item-section avatar><q-icon name="skip_next" /></q-item-section>
+                        <q-item-section avatar>
+                          <q-icon name="skip_next" />
+                        </q-item-section>
                         <q-item-section>Play Next</q-item-section>
                       </q-item>
-                      <q-separator />
-                      <q-item clickable @click="addToFavorites(track)">
-                        <q-item-section avatar><q-icon name="favorite" /></q-item-section>
-                        <q-item-section>Add to Favorites</q-item-section>
-                      </q-item>
-                      <q-item clickable @click="handleAddToPlaylist(track)">
-                        <q-item-section avatar><q-icon name="playlist_add" /></q-item-section>
+
+                      <q-item clickable @click="openAddToPlaylistDialog(track)">
+                        <q-item-section avatar>
+                          <q-icon name="playlist_add" />
+                        </q-item-section>
                         <q-item-section>Add to Playlist</q-item-section>
                       </q-item>
+
+                      <q-item clickable @click="toggleFavorite(track)">
+                        <q-item-section avatar>
+                          <q-icon
+                            :name="isTrackInFavorites(track) ? 'favorite' : 'favorite_border'"
+                          />
+                        </q-item-section>
+                        <q-item-section>
+                          {{
+                            isTrackInFavorites(track) ? 'Remove from Favorites' : 'Add to Favorites'
+                          }}
+                        </q-item-section>
+                      </q-item>
+
                       <q-separator />
-                      <q-item clickable @click="showTrackInfo(track)">
-                        <q-item-section avatar><q-icon name="info" /></q-item-section>
-                        <q-item-section>Track Info</q-item-section>
+
+                      <q-item clickable @click="confirmDeleteTrack(track)" class="text-negative">
+                        <q-item-section avatar>
+                          <q-icon name="delete" color="negative" />
+                        </q-item-section>
+                        <q-item-section>Delete Track</q-item-section>
                       </q-item>
                     </q-list>
                   </q-menu>
@@ -290,50 +294,14 @@
     </section>
 
     <!-- 歌曲信息对话框 -->
-    <q-dialog v-model="showInfoDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">Track Information</div>
-        </q-card-section>
-
-        <q-card-section v-if="selectedTrack" class="q-pt-none">
-          <div class="row">
-            <div class="col-4">
-              <q-img
-                :src="getSmartCoverUrl(selectedTrack)"
-                :alt="selectedTrack.title"
-                style="width: 100px; height: 100px"
-                class="rounded-borders"
-              />
-            </div>
-            <div class="col-8 q-pl-md">
-              <div class="text-subtitle1 text-weight-medium">{{ selectedTrack.title }}</div>
-              <div class="text-body2 text-grey-6">
-                {{ selectedTrack.artist || 'Unknown Artist' }}
-              </div>
-              <div class="text-body2 text-grey-7">{{ selectedTrack.album || 'Unknown Album' }}</div>
-              <div class="text-caption text-grey-6 q-mt-sm">
-                Duration: {{ formatDuration(selectedTrack.duration) }}
-              </div>
-              <div class="text-caption text-grey-6">File: {{ selectedTrack.fileName }}</div>
-            </div>
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Close" @click="showInfoDialog = false" />
-          <q-btn color="primary" label="Play" @click="playSelectedTrack" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useMusicStore, type MusicTrack } from 'src/stores/musicStore';
-import { usePlaylistStore } from 'src/stores/playlistStore';
+import { usePlaylistStore, type PlaylistTrack } from 'src/stores/playlistStore';
 import MusicCard from 'src/components/MusicCard.vue';
 import AddToPlaylistDialog from 'src/components/AddToPlaylistDialog.vue';
 
@@ -344,14 +312,20 @@ const playlistStore = usePlaylistStore();
 // 响应式数据
 const searchQuery = ref('');
 const sortBy = ref('title');
-const viewMode = ref('grid');
-const showInfoDialog = ref(false);
-const selectedTrack = ref<MusicTrack | null>(null);
+const windowWidth = ref(window.innerWidth);
+const windowHeight = ref(window.innerHeight);
 
 // 计算属性
 const favoriteCount = computed(() => {
   // TODO: 实现收藏功能后返回实际数量
   return Math.floor(musicStore.totalTracks * 0.3);
+});
+
+// 根据屏幕比例自动选择视图模式
+const viewMode = computed(() => {
+  const aspectRatio = windowWidth.value / windowHeight.value;
+  // 当宽高比小于 3:4 (0.75) 时使用列表视图（竖屏），否则使用网格视图
+  return aspectRatio < 0.75 ? 'list' : 'grid';
 });
 
 const filteredTracks = computed(() => {
@@ -388,11 +362,6 @@ const sortOptions = [
   { label: 'Album', value: 'album' },
   { label: 'Duration', value: 'duration' },
   { label: 'Recently Added', value: 'recent' },
-];
-
-const viewModeOptions = [
-  { label: 'Grid', value: 'grid', icon: 'grid_view' },
-  { label: 'List', value: 'list', icon: 'view_list' },
 ];
 
 // 方法
@@ -458,16 +427,120 @@ const shuffleAll = () => {
   }
 };
 
-const handleAddToPlaylist = (track: MusicTrack) => {
+const addTrackToQueue = (track: MusicTrack) => {
+  console.log(`[AllMusicPage] Adding track to queue: ${track.title}`);
+
+  // 检查当前是否有音乐在播放
+  const wasEmpty = !musicStore.currentTrack;
+
+  musicStore.addToQueue(track);
+
+  // 如果之前没有音乐在播放，现在立即开始播放
+  if (wasEmpty) {
+    musicStore.playTrack(track);
+    $q.notify({
+      message: `Now playing: ${track.title}`,
+      icon: 'play_arrow',
+      color: 'positive',
+    });
+  } else {
+    $q.notify({
+      message: `"${track.title}" added to queue`,
+      icon: 'queue',
+      color: 'positive',
+    });
+  }
+};
+
+const playTrackNext = (track: MusicTrack) => {
+  console.log(`[AllMusicPage] Setting track to play next: ${track.title}`);
+
+  // 检查当前是否有音乐在播放
+  const wasEmpty = !musicStore.currentTrack;
+
+  if (wasEmpty) {
+    // 如果没有音乐在播放，直接播放这首歌
+    musicStore.playTrack(track);
+    $q.notify({
+      message: `Now playing: ${track.title}`,
+      icon: 'play_arrow',
+      color: 'positive',
+    });
+  } else {
+    // 如果有音乐在播放，插入到队列下一首
+    musicStore.addToQueueNext(track);
+    $q.notify({
+      message: `"${track.title}" will play next`,
+      icon: 'skip_next',
+      color: 'secondary',
+    });
+  }
+};
+
+// 删除歌曲处理函数
+const handleDeleteTrack = async (track: MusicTrack) => {
+  try {
+    const result = await musicStore.deleteTrackFile(track);
+
+    if (result.success) {
+      $q.notify({
+        type: 'positive',
+        message: `Successfully deleted "${track.title}"`,
+        icon: 'delete',
+        position: 'top',
+      });
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: result.error || 'Failed to delete track',
+        icon: 'error',
+        position: 'top',
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting track:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'An error occurred while deleting the track',
+      icon: 'error',
+      position: 'top',
+    });
+  }
+};
+
+// 确认删除歌曲（用于列表视图）
+const confirmDeleteTrack = (track: MusicTrack) => {
   $q.dialog({
-    component: AddToPlaylistDialog,
-    componentProps: {
-      track: track,
-    },
+    title: 'Delete Track',
+    message: `Are you sure you want to delete "${track.title}"? This action cannot be undone.`,
+    cancel: true,
+    persistent: true,
+    color: 'negative',
+  }).onOk(() => {
+    handleDeleteTrack(track);
   });
 };
 
-const addToFavorites = async (track: MusicTrack) => {
+// 转换为播放列表歌曲格式
+const convertToPlaylistTrack = (track: MusicTrack): Omit<PlaylistTrack, 'addedAt'> => {
+  return {
+    beatmapsetId: Number(track.id) || 0,
+    title: track.title,
+    artist: track.artist || 'Unknown Artist',
+    duration: track.duration || 0,
+    bpm: 120, // 默认 BPM，因为 MusicTrack 中没有这个字段
+  };
+};
+
+// 检查是否在收藏夹中
+const isTrackInFavorites = (track: MusicTrack): boolean => {
+  const favPlaylist = playlistStore.defaultPlaylist;
+  if (!favPlaylist) return false;
+  return favPlaylist.tracks.some((t) => t.beatmapsetId === Number(track.id));
+};
+
+// 切换收藏状态
+const toggleFavorite = async (track: MusicTrack) => {
   const favPlaylist = playlistStore.defaultPlaylist;
   if (!favPlaylist) {
     $q.notify({
@@ -479,62 +552,42 @@ const addToFavorites = async (track: MusicTrack) => {
   }
 
   try {
-    const playlistTrack = {
-      beatmapsetId: Number(track.id) || 0,
-      title: track.title,
-      artist: track.artist || 'Unknown Artist',
-      duration: track.duration || 0,
-      bpm: 120, // 默认 BPM
-    };
-
-    await playlistStore.addTrackToPlaylist(favPlaylist.id, playlistTrack);
-    $q.notify({
-      type: 'positive',
-      message: 'Added to Favorites!',
-      position: 'top',
-    });
+    if (isTrackInFavorites(track)) {
+      // 从收藏夹移除
+      await playlistStore.removeTrackFromPlaylist(favPlaylist.id, Number(track.id));
+      $q.notify({
+        type: 'info',
+        message: 'Removed from Favorites',
+        position: 'top',
+      });
+    } else {
+      // 添加到收藏夹
+      const playlistTrack = convertToPlaylistTrack(track);
+      await playlistStore.addTrackToPlaylist(favPlaylist.id, playlistTrack);
+      $q.notify({
+        type: 'positive',
+        message: 'Added to Favorites!',
+        position: 'top',
+      });
+    }
   } catch (error) {
-    console.error('Error adding to favorites:', error);
+    console.error('Error toggling favorite:', error);
     $q.notify({
       type: 'negative',
-      message: error instanceof Error ? error.message : 'Failed to add to favorites',
+      message: error instanceof Error ? error.message : 'Failed to update favorites',
       position: 'top',
     });
   }
 };
 
-const addTrackToQueue = (track: MusicTrack) => {
-  console.log(`[AllMusicPage] Adding track to queue: ${track.title}`);
-  musicStore.addToQueue(track);
-
-  $q.notify({
-    message: `"${track.title}" added to queue`,
-    icon: 'queue',
-    color: 'positive',
+// 打开添加到播放列表对话框
+const openAddToPlaylistDialog = (track: MusicTrack) => {
+  $q.dialog({
+    component: AddToPlaylistDialog,
+    componentProps: {
+      track: track,
+    },
   });
-};
-
-const playTrackNext = (track: MusicTrack) => {
-  console.log(`[AllMusicPage] Setting track to play next: ${track.title}`);
-  musicStore.addToQueueNext(track);
-
-  $q.notify({
-    message: `"${track.title}" will play next`,
-    icon: 'skip_next',
-    color: 'secondary',
-  });
-};
-
-const showTrackInfo = (track: MusicTrack) => {
-  selectedTrack.value = track;
-  showInfoDialog.value = true;
-};
-
-const playSelectedTrack = () => {
-  if (selectedTrack.value) {
-    playTrack(selectedTrack.value);
-    showInfoDialog.value = false;
-  }
 };
 
 const formatDuration = (seconds?: number): string => {
@@ -610,21 +663,32 @@ const onSortChange = () => {
   // 排序逻辑已在计算属性中处理
 };
 
-const onViewModeChange = () => {
-  // 视图模式切换
+// 窗口大小变化处理
+const handleResize = () => {
+  windowWidth.value = window.innerWidth;
+  windowHeight.value = window.innerHeight;
 };
 
 // 组件挂载
 onMounted(() => {
   // 自动扫描音乐文件
   void scanMusic();
+
+  // 添加窗口大小变化监听
+  window.addEventListener('resize', handleResize);
+});
+
+// 组件卸载
+onUnmounted(() => {
+  // 移除窗口大小变化监听
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
 <style lang="scss" scoped>
 .all-music-page {
-  background-color: #0a0a0f; // 与 PlaylistPage 一致的深蓝背景
-  color: #c4c9d4; // 与 PlaylistPage 一致的文字颜色
+  background: transparent; // 使用透明背景，避免黑边问题
+  color: #c4c9d4; // 保持一致的文字颜色
   min-height: 100vh;
   padding: 24px;
 
@@ -657,12 +721,12 @@ onMounted(() => {
 
     .stats-cards {
       .stat-card {
-        background: rgba(255, 255, 255, 0.05); // 与 PlaylistPage 完全一致的卡片背景
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1); // 与 PlaylistPage 一致的边框
+        background: rgba(30, 30, 33, 0.7); // 参考PlaylistCard的更深背景色
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.12); // 与PlaylistCard一致的边框
         border-radius: 8px;
         transition: all 0.25s ease-in-out;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 
         .q-icon {
           color: #ff69b4;
@@ -680,7 +744,7 @@ onMounted(() => {
         &:hover {
           transform: translateY(-3px) scale(1.02);
           box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-          background: #1c2749; // 悬停时稍微亮一点的蓝色
+          background: rgba(35, 35, 40, 0.8); // 参考PlaylistCard的悬停背景色
           border-color: rgba(255, 105, 180, 0.5);
         }
       }
@@ -689,6 +753,27 @@ onMounted(() => {
 
   .actions-bar {
     padding: 16px 0;
+
+    // 强制横向布局，不响应屏幕大小变化
+    .row {
+      flex-wrap: nowrap !important;
+
+      .col-auto {
+        .row {
+          flex-wrap: nowrap !important;
+        }
+      }
+    }
+
+    // 为按钮容器应用强制横向布局样式
+    .col-auto .row {
+      flex-wrap: nowrap !important;
+    }
+
+    // 应用与search-section相同的横向布局样式
+    .row:not(.stats-cards .row) {
+      flex-wrap: nowrap !important;
+    }
 
     h2 {
       color: #c4c9d4; // 与 PlaylistPage 一致的标题颜色
@@ -799,18 +884,24 @@ onMounted(() => {
   .search-section {
     padding-bottom: 20px;
 
+    // 强制横向布局，不响应屏幕大小变化
+    .row {
+      flex-wrap: nowrap !important;
+    }
+
     .q-input,
     .q-select {
       :deep(.q-field__control) {
-        background: #16213e; // 与 PlaylistPage 一致的输入框背景
+        background: rgba(30, 30, 33, 0.7); // 参考PlaylistCard的更深背景色
+        backdrop-filter: blur(15px);
         border-radius: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         color: #f0f0f0;
         transition: all 0.2s ease-in-out;
 
         &:hover {
           border-color: rgba(255, 105, 180, 0.5);
-          background: rgba(35, 35, 38, 0.9);
+          background: rgba(35, 35, 40, 0.8); // 悬停时稍微亮一点的深色
         }
       }
 
@@ -939,16 +1030,17 @@ onMounted(() => {
     }
 
     .music-list-item {
-      background: #16213e; // 与 PlaylistPage 一致的列表项背景
-      border: 1px solid rgba(196, 201, 212, 0.15); // 使用主文字颜色的透明边框
+      background: rgba(30, 30, 33, 0.7); // 参考PlaylistCard的更深背景色
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.12); // 与PlaylistCard一致的边框
       border-radius: 6px;
       margin-bottom: 8px;
       padding: 10px 16px;
       transition: all 0.2s ease-in-out;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 
       &:hover {
-        background: #1c2749; // 悬停时稍微亮一点的蓝色
+        background: rgba(35, 35, 40, 0.8); // 参考PlaylistCard的悬停背景色
         border-color: rgba(255, 105, 180, 0.4);
         transform: translateY(-1px) scale(1.01);
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
@@ -978,13 +1070,26 @@ onMounted(() => {
       .text-caption.text-grey-6 {
         color: #8b92b8 !important; // 与 PlaylistPage 一致的时长文本颜色
       }
+
+      .q-item__section--side {
+        .delete-btn {
+          opacity: 0.7;
+          transition: all 0.2s ease;
+
+          &:hover {
+            opacity: 1;
+            color: #ff69b4 !important;
+            transform: scale(1.1);
+          }
+        }
+      }
     }
   }
 
   // 歌曲信息对话框样式
   :deep(.q-dialog) {
     .q-card {
-      background-color: #16213e; // 与 PlaylistPage 一致的对话框背景
+      background-color: #2a2a2e; // 更深的灰色背景，与其他组件一致
       border: 1px solid rgba(196, 201, 212, 0.15); // 使用主文字颜色的透明边框
       border-radius: 8px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -1150,42 +1255,79 @@ onMounted(() => {
 // 菜单样式（用于列表视图的次级菜单）
 :deep(.q-menu) {
   .q-list {
-    background: rgba(40, 40, 50, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 4px 0;
+    background: #0d0d0d !important; // 更深的黑色背景
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px;
+    padding: 8px 0;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+    min-width: 220px;
   }
 
   .q-item {
-    color: #ffffff;
-    border-radius: 6px;
-    margin: 2px 6px;
-    transition: all 0.2s ease;
+    color: #ffffff !important; // 纯白色文字
+    border-radius: 8px;
+    margin: 4px 10px;
+    padding: 14px 18px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 500;
+    font-size: 14px;
 
     &:hover {
-      background: rgba(255, 105, 180, 0.15);
-      color: #ff69b4;
+      background: rgba(255, 105, 180, 0.15) !important;
+      color: #ff69b4 !important;
+      transform: translateX(6px);
+      box-shadow: 0 4px 12px rgba(255, 105, 180, 0.2);
     }
 
     .q-icon {
-      color: inherit;
+      color: inherit !important;
+      margin-right: 14px;
+      font-size: 18px;
+    }
+
+    // 删除按钮特殊样式
+    &.text-negative {
+      color: #ff6b6b !important;
+
+      &:hover {
+        background: rgba(255, 107, 107, 0.15) !important;
+        color: #ff5252 !important;
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
+      }
+
+      .q-icon {
+        color: #ff6b6b !important;
+      }
     }
   }
 
   .q-separator {
-    background: rgba(255, 255, 255, 0.1);
-    margin: 4px 0;
+    background: rgba(255, 255, 255, 0.1) !important;
+    margin: 10px 16px;
+    height: 1px;
   }
 }
 
 // 响应式设计
 @media (max-width: 768px) {
   .all-music-page {
+    padding: 16px; // 减少移动端的内边距
+
     .page-header {
       .title-section {
         .text-h4 {
           font-size: 1.8rem;
+        }
+      }
+
+      .stats-cards {
+        .row {
+          margin: 0 -8px; // 减少卡片间距
+        }
+
+        .stat-card {
+          margin-bottom: 12px; // 增加垂直间距
         }
       }
     }
@@ -1202,13 +1344,23 @@ onMounted(() => {
       }
     }
 
-    .search-section {
-      .row {
-        flex-direction: column;
-        gap: 16px;
+    // 列表视图优化
+    .music-list {
+      max-height: calc(100vh - 320px); // 为移动端调整高度
 
-        .col-auto {
-          width: 100%;
+      .music-list-item {
+        padding: 12px 16px; // 增加触摸区域
+        margin-bottom: 10px;
+
+        .q-item__section--side {
+          .row {
+            gap: 8px; // 增加按钮间距
+
+            .q-btn {
+              min-width: 36px; // 确保按钮触摸区域足够大
+              min-height: 36px;
+            }
+          }
         }
       }
     }

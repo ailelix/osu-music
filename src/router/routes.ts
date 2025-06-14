@@ -50,13 +50,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/ResourcesPage.vue'), // 你需要创建这个页面
         meta: { title: 'Resources', icon: 'public' },
       },
-      // 设置页 (也可以是 MainLayout 的子路由)
-      {
-        path: 'settings', // 访问 '/settings'
-        name: 'settings',
-        component: () => import('pages/SettingsPage.vue'), // 你需要创建这个页面
-        meta: { title: 'Settings', icon: 'settings' },
-      },
       // 单个播放列表详情页
       {
         path: 'playlist/:id', // 访问 '/playlist/歌单ID'

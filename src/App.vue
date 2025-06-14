@@ -101,7 +101,7 @@ onMounted(() => {
               error,
               url.searchParams.get('error_description'),
             );
-            router.push({ name: 'settings', query: { oauth_error: error } }).catch(() => {});
+            router.push({ name: 'authSettings', query: { oauth_error: error } }).catch(() => {});
             return;
           }
           if (code) {

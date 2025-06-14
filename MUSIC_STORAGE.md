@@ -2,7 +2,7 @@
 
 ## 统一存储位置
 
-从 2024 年版本开始，osu! Music 应用使用统一的存储路径：
+osu! Music 应用使用统一的存储路径：
 
 ```
 ~/Music/osu-music/
@@ -12,11 +12,6 @@
     ├── *.json                     # 其他自定义播放列表
     └── ...
 ```
-
-## 迁移说明
-
-- **旧路径**: `/public/music/` 和 `/public/playlists/`
-- **新路径**: `~/Music/osu-music/` 和 `~/Music/osu-music/playlists/`
 
 ## 特性
 

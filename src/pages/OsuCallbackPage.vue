@@ -79,7 +79,7 @@ function processAuthentication(authCode: string | undefined): Promise<void> {
                 message: `Welcome, ${authStore.user.username}! Successfully logged in.`,
                 icon: 'check_circle',
               });
-              router.replace({ name: 'settings' }).catch((err) => {
+              router.replace({ name: 'authSettings' }).catch((err) => {
                 console.error('Navigation error:', err);
               });
               return Promise.resolve();
@@ -99,7 +99,7 @@ function processAuthentication(authCode: string | undefined): Promise<void> {
               timeout: 7000,
               icon: 'warning',
             });
-            router.replace({ name: 'settings' }).catch((err) => {
+            router.replace({ name: 'authSettings' }).catch((err) => {
               console.error('Navigation error:', err);
             });
             return Promise.resolve();
@@ -183,10 +183,12 @@ async function handleAuthenticationFlow() {
       isLoading.value = false;
     }
   } else {
-    console.warn('[OsuCallbackPage] Authenticated but no code processed. Redirecting to settings.');
+    console.warn(
+      '[OsuCallbackPage] Authenticated but no code processed. Redirecting to auth settings.',
+    );
     statusMessage.value = 'Already authenticated or invalid state.';
     isLoading.value = false;
-    void router.replace({ name: 'settings' });
+    void router.replace({ name: 'authSettings' });
   }
 }
 
@@ -237,7 +239,7 @@ function retryLogin() {
   showRetryButton.value = false;
   statusMessage.value = 'Retrying login...';
   isLoading.value = true;
-  router.push({ name: 'settings' }).catch((err) => {
+  router.push({ name: 'authSettings' }).catch((err) => {
     console.error('Retry navigation error:', err);
     isLoading.value = false;
   });

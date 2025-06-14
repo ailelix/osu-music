@@ -512,6 +512,49 @@ export const useMusicStore = defineStore('music', () => {
     }
   };
 
+  // 删除音乐文件（包括从文件系统删除和从库中移除）
+  const deleteTrackFile = async (
+    track: MusicTrack,
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // 在 Electron 环境中，通过 IPC 删除文件
+      if (window.electron?.ipcRenderer) {
+        const result: { success: boolean; error?: string } =
+          await window.electron.ipcRenderer.invoke('delete-music-file', track.filePath);
+
+        if (result.success) {
+          // 从库中移除
+          removeTrack(track.id);
+
+          // 如果正在播放这首歌，停止播放
+          if (currentTrack.value?.id === track.id) {
+            stopTrack();
+          }
+
+          // 从播放队列中移除
+          const queueIndex = playQueue.value.findIndex((t) => t.id === track.id);
+          if (queueIndex > -1) {
+            removeFromQueue(queueIndex);
+          }
+
+          console.log(`Deleted track file and removed from library: ${track.title}`);
+          return { success: true };
+        } else {
+          return { success: false, error: result.error || 'Failed to delete file' };
+        }
+      } else {
+        // 浏览器环境中只从库中移除
+        removeTrack(track.id);
+        console.log(`Removed track from library (browser mode): ${track.title}`);
+        return { success: true };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete track';
+      console.error('Error deleting track:', error);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   // 根据 beatmapsetId 查找实际的音频文件
   const findTrackByBeatmapsetId = (beatmapsetId: number): MusicTrack | null => {
     console.log(`[findTrackByBeatmapsetId] Searching for beatmapsetId: ${beatmapsetId}`);
@@ -622,6 +665,7 @@ export const useMusicStore = defineStore('music', () => {
     searchTracks,
     addTracks,
     removeTrack,
+    deleteTrackFile,
   };
 });
 

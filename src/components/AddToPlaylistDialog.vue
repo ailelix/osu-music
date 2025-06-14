@@ -212,17 +212,24 @@ const togglePlaylistSelection = (playlistId: string) => {
 };
 
 const showLoading = (message: string) => {
-  $q.loading.show({
-    spinner: QSpinnerBall,
-    spinnerColor: 'lazer-accent-pink',
-    messageColor: 'white',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    message,
-  });
+  if ($q.loading && typeof $q.loading.show === 'function') {
+    $q.loading.show({
+      spinner: QSpinnerBall,
+      spinnerColor: 'lazer-accent-pink',
+      messageColor: 'white',
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      message,
+    });
+  } else if ($q.notify && typeof $q.notify === 'function') {
+    // 降级方案：使用通知代替加载中
+    $q.notify({ type: 'info', message });
+  }
 };
 
 const hideLoading = () => {
-  $q.loading.hide();
+  if ($q.loading && typeof $q.loading.hide === 'function') {
+    $q.loading.hide();
+  }
 };
 
 const handleCreateAndAddToPlaylist = async () => {

@@ -145,9 +145,6 @@ const schema: Schema<AppSettings> = {
 // 初始化 electron-store 实例
 const appSettingsStore = new Store<AppSettings>({ schema, name: 'app-settings' }); // 给 store 起个名字
 
-// needed in case process is undefined under Linux
-const platform = process.platform || os.platform();
-
 const currentDir = fileURLToPath(new URL('.', import.meta.url));
 
 const PROTOCOL_SCHEME = 'osu-music-fusion'; // 定义你的协议名称
@@ -1026,16 +1023,41 @@ void app.whenReady().then(() => {
       return 0;
     }
   });
-});
 
-app.on('window-all-closed', () => {
-  if (platform !== 'darwin') {
-    app.quit();
-  }
-});
+  // 新增: 删除音乐文件
+  ipcMain.handle('delete-music-file', async (event, filePath) => {
+    if (!filePath) {
+      return { success: false, error: 'File path is required' };
+    }
 
-app.on('activate', () => {
-  if (mainWindow === undefined) {
-    void createWindow();
-  }
+    try {
+      // 验证文件路径安全性
+      const musicFolderPath = getMusicStoragePath();
+      if (!validatePath(filePath, musicFolderPath)) {
+        return { success: false, error: 'Invalid file path' };
+      }
+
+      // 验证文件类型
+      if (!isValidAudioFile(path.basename(filePath))) {
+        return { success: false, error: 'Invalid audio file type' };
+      }
+
+      // 检查文件是否存在
+      try {
+        await fs.access(filePath);
+      } catch {
+        return { success: false, error: 'Music file not found' };
+      }
+
+      // 删除文件
+      await fs.unlink(filePath);
+
+      console.log(`[Main Process] Deleted music file: ${filePath}`);
+      return { success: true };
+    } catch (error) {
+      console.error('[Main Process] Error deleting music file:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
 });

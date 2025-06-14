@@ -693,7 +693,7 @@ onMounted(() => {
 <style scoped lang="scss">
 .playlist-detail-page {
   padding: 0;
-  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
   min-height: 100vh;
 }
 
@@ -733,7 +733,7 @@ onMounted(() => {
 .playlist-header {
   position: relative;
   padding: 3rem 2rem 2rem;
-  background: linear-gradient(135deg, #16213e 0%, #0f1419 100%);
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
   border-radius: 0 0 24px 24px;
   overflow: hidden;
 

@@ -1,5 +1,5 @@
 <template>
-  <q-card class="music-card" bordered flat @click="$emit('click', track)">
+  <q-card class="music-card" bordered flat @click="handleCardClick">
     <div class="card-content">
       <!-- 封面图片 -->
       <div class="cover-section">
@@ -70,60 +70,30 @@
               <q-tooltip>Add to Playlist</q-tooltip>
             </q-btn>
 
-            <!-- 更多选项菜单 -->
+            <!-- 加入播放队列按钮 -->
             <q-btn
               flat
               round
               size="sm"
-              icon="more_vert"
+              icon="queue"
               color="grey-6"
-              @click.stop="handleMenuButtonClick"
+              @click.stop="handleAddToQueue"
+              class="q-mr-xs"
             >
-              <q-menu v-model="showMenu" class="track-menu">
-                <q-list dense style="min-width: 180px">
-                  <q-item clickable v-close-popup @click="handlePlayNow">
-                    <q-item-section avatar>
-                      <q-icon name="play_arrow" />
-                    </q-item-section>
-                    <q-item-section>Play Now</q-item-section>
-                  </q-item>
-                  <q-separator />
-                  <q-item clickable v-close-popup @click="handleAddToQueue">
-                    <q-item-section avatar>
-                      <q-icon name="queue" />
-                    </q-item-section>
-                    <q-item-section>Add to Queue</q-item-section>
-                  </q-item>
-                  <q-item clickable v-close-popup @click="handlePlayNext">
-                    <q-item-section avatar>
-                      <q-icon name="skip_next" />
-                    </q-item-section>
-                    <q-item-section>Play Next</q-item-section>
-                  </q-item>
-                  <q-separator />
-                  <q-item clickable v-close-popup @click="toggleFavorite">
-                    <q-item-section avatar>
-                      <q-icon :name="isInFavorites ? 'favorite' : 'favorite_border'" />
-                    </q-item-section>
-                    <q-item-section>{{
-                      isInFavorites ? 'Remove from Favorites' : 'Add to Favorites'
-                    }}</q-item-section>
-                  </q-item>
-                  <q-item clickable v-close-popup @click="openAddToPlaylistDialog">
-                    <q-item-section avatar>
-                      <q-icon name="playlist_add" />
-                    </q-item-section>
-                    <q-item-section>Add to Playlist</q-item-section>
-                  </q-item>
-                  <q-separator />
-                  <q-item clickable v-close-popup @click="handleShowInfo">
-                    <q-item-section avatar>
-                      <q-icon name="info" />
-                    </q-item-section>
-                    <q-item-section>Track Info</q-item-section>
-                  </q-item>
-                </q-list>
-              </q-menu>
+              <q-tooltip>Add to Queue</q-tooltip>
+            </q-btn>
+
+            <!-- 删除按钮 -->
+            <q-btn
+              flat
+              round
+              size="sm"
+              icon="delete"
+              color="grey-6"
+              @click.stop="handleDeleteTrack"
+              :loading="isDeletingTrack"
+            >
+              <q-tooltip>Delete Track</q-tooltip>
             </q-btn>
           </div>
         </div>
@@ -146,12 +116,10 @@ const props = defineProps<{
 
 // Events
 const emit = defineEmits<{
-  click: [track: MusicTrack];
   play: [track: MusicTrack];
-  addToPlaylist: [track: MusicTrack];
-  showInfo: [track: MusicTrack];
   addToQueue: [track: MusicTrack];
   playNext: [track: MusicTrack];
+  delete: [track: MusicTrack];
 }>();
 
 // Composables
@@ -160,7 +128,7 @@ const playlistStore = usePlaylistStore();
 
 // State
 const isAddingToFavorites = ref(false);
-const showMenu = ref(false);
+const isDeletingTrack = ref(false);
 
 // 使用 osu! ppy 的默认封面
 const defaultCover = 'https://osu.ppy.sh/images/layout/beatmaps/default-bg.png';
@@ -292,49 +260,48 @@ const formatDuration = (seconds?: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
-// 事件处理函数（带日志）
-const handleMenuButtonClick = () => {
-  console.log(`[MusicCard] Menu button clicked for track: ${props.track.title}`);
-  showMenu.value = true;
-};
-
-const handlePlayNow = () => {
-  console.log(`[MusicCard] Play Now clicked for track: ${props.track.title}`);
-  emit('play', props.track);
-};
-
-const handleAddToQueue = () => {
-  console.log(`[MusicCard] Add to Queue clicked for track: ${props.track.title}`);
-  emit('addToQueue', props.track);
-};
-
-const handlePlayNext = () => {
-  console.log(`[MusicCard] Play Next clicked for track: ${props.track.title}`);
+// 处理卡片点击 - 插入下一首播放
+const handleCardClick = () => {
   emit('playNext', props.track);
 };
 
-const handleShowInfo = () => {
-  console.log(`[MusicCard] Show Info clicked for track: ${props.track.title}`);
-  emit('showInfo', props.track);
+// 加入播放队列末尾
+const handleAddToQueue = () => {
+  emit('addToQueue', props.track);
+};
+
+// 删除歌曲处理函数
+const handleDeleteTrack = async () => {
+  $q.dialog({
+    title: 'Delete Track',
+    message: `Are you sure you want to delete "${props.track.title}"? This action cannot be undone.`,
+    cancel: true,
+    persistent: true,
+    color: 'negative',
+  }).onOk(async () => {
+    emit('delete', props.track);
+  });
 };
 </script>
 
 <style lang="scss" scoped>
 .music-card {
-  background: rgba(255, 255, 255, 0.05); // 与 PlaylistPage 一致的卡片背景
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1); // 与 PlaylistPage 一致的边框
+  background: rgba(30, 30, 33, 0.7); // 参考PlaylistCard的更深背景色
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.12); // 与PlaylistCard一致的边框
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
   cursor: pointer;
-  height: 280px;
+  height: 300px; // 增加高度确保按钮有足够空间
+  min-height: 260px; // 确保最小高度，防止内容被挤压
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); // 与PlaylistCard一致的阴影
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    background: rgba(255, 255, 255, 0.08); // 悬停时稍微亮一点
-    border-color: rgba(255, 105, 180, 0.3); // 悬停时边框高亮
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    background: rgba(35, 35, 40, 0.8); // 参考PlaylistCard的悬停背景色
+    border-color: rgba(255, 105, 180, 0.4); // 悬停时边框高亮
 
     .play-overlay {
       opacity: 1;
@@ -350,7 +317,7 @@ const handleShowInfo = () => {
   .cover-section {
     position: relative;
     width: 100%;
-    height: 180px;
+    height: 170px; // 稍微减少封面高度，为信息区域留出更多空间
     overflow: hidden;
 
     .cover-image-container {
@@ -398,10 +365,11 @@ const handleShowInfo = () => {
 
   .info-section {
     flex: 1;
-    padding: 12px;
+    padding: 12px 12px 16px 12px; // 增加底部内边距确保按钮有足够空间
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    min-height: 120px; // 确保信息区域有足够高度
 
     .track-info {
       .track-title {
@@ -428,21 +396,39 @@ const handleShowInfo = () => {
 
     .track-meta {
       margin-top: 8px;
+      min-height: 32px; // 确保按钮区域有足够高度
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
 
       .actions {
         display: flex;
         align-items: center;
         gap: 4px;
+        flex-shrink: 0; // 防止按钮被压缩
+        min-width: 140px; // 确保按钮区域有最小宽度
 
         .q-btn {
           z-index: 10; // 确保按钮在上层
           position: relative; // 确保 z-index 生效
+          flex-shrink: 0; // 防止单个按钮被压缩
+
+          // 基础尺寸，确保在所有情况下都可见
+          min-width: 32px;
+          min-height: 32px;
+
+          // 强制显示，防止被其他样式隐藏
+          display: flex !important;
+          opacity: 1 !important;
+          visibility: visible !important;
         }
       }
 
       .duration {
         color: #8b92b8; // 与 PlaylistPage 一致的次要文字颜色
         font-family: 'JetBrains Mono', monospace;
+        flex-shrink: 0; // 防止时长文本被压缩
+        white-space: nowrap; // 防止换行
       }
     }
   }
@@ -485,18 +471,175 @@ const handleShowInfo = () => {
 // 响应式设计
 @media (max-width: 768px) {
   .music-card {
-    height: 260px;
+    height: 280px; // 稍微增加移动端高度
 
     .cover-section {
-      height: 160px;
+      height: 150px; // 调整移动端封面高度
     }
 
     .info-section {
-      padding: 10px;
+      padding: 10px 10px 14px 10px; // 增加底部内边距
+      min-height: 130px; // 确保信息区域有足够高度
 
       .track-info {
+        margin-bottom: 8px; // 确保有足够空间给按钮
+
         .track-title {
           font-size: 13px;
+          line-height: 1.4;
+          -webkit-line-clamp: 2; // 限制标题最多两行
+          line-clamp: 2;
+        }
+
+        .track-artist {
+          font-size: 11px;
+        }
+      }
+
+      .track-meta {
+        margin-top: 8px;
+        min-height: 36px; // 增加按钮区域高度
+
+        .actions {
+          gap: 2px; // 减少按钮间距以适应小屏幕
+          flex-wrap: nowrap; // 确保按钮不换行
+          justify-content: flex-end; // 右对齐按钮
+
+          .q-btn {
+            min-width: 30px !important; // 确保触摸友好
+            min-height: 30px !important;
+            width: 30px;
+            height: 30px;
+            font-size: 12px;
+            padding: 0 !important;
+
+            // 强制显示按钮
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            flex-shrink: 0; // 防止按钮被压缩
+
+            .q-icon {
+              font-size: 16px; // 保持图标清晰可见
+            }
+          }
+        }
+
+        .duration {
+          font-size: 11px;
+          flex-shrink: 0; // 防止时长被压缩
+        }
+      }
+    }
+  }
+}
+
+// 竖屏特定优化 (宽高比 < 0.8)
+@media (max-aspect-ratio: 4/5) {
+  .music-card {
+    .info-section {
+      .track-meta {
+        .actions {
+          .q-btn {
+            // 在极窄屏幕上进一步优化按钮尺寸
+            min-width: 28px;
+            min-height: 28px;
+            font-size: 14px;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 横向布局优化 (宽高比 >= 1.2，即横向布局)
+@media (min-aspect-ratio: 6/5) {
+  .music-card {
+    height: 240px; // 在横向布局时增加高度以确保有足够空间
+
+    .cover-section {
+      height: 130px; // 调整封面高度
+    }
+
+    .info-section {
+      padding: 8px 12px 12px 12px; // 增加底部内边距
+      min-height: 110px; // 确保信息区域有最小高度
+
+      .track-info {
+        margin-bottom: 6px; // 减少标题和按钮间的距离
+
+        .track-title {
+          font-size: 12px;
+          line-height: 1.3;
+          // 限制行数，防止标题过长
+          -webkit-line-clamp: 1;
+          line-clamp: 1;
+        }
+
+        .track-artist {
+          font-size: 10px;
+          margin-bottom: 1px;
+        }
+      }
+
+      .track-meta {
+        margin-top: 6px; // 增加顶部间距
+        min-height: 32px; // 确保按钮有足够空间
+
+        .actions {
+          gap: 2px; // 适中的按钮间距
+          flex-wrap: nowrap; // 强制按钮不换行
+          justify-content: flex-end; // 右对齐按钮
+
+          .q-btn {
+            min-width: 26px !important;
+            min-height: 26px !important;
+            width: 26px;
+            height: 26px;
+            font-size: 11px;
+            padding: 0 !important;
+
+            // 确保按钮在横向布局时可见
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            flex-shrink: 0; // 防止按钮被压缩
+
+            .q-icon {
+              font-size: 14px; // 保持图标可见
+            }
+          }
+        }
+
+        .duration {
+          font-size: 10px;
+          white-space: nowrap; // 防止时长文本换行
+          flex-shrink: 0; // 防止时长文本被压缩
+        }
+      }
+    }
+  }
+}
+
+// 极小屏幕优化 (宽度 < 480px)
+@media (max-width: 480px) {
+  .music-card {
+    .info-section {
+      .track-meta {
+        .actions {
+          gap: 0px; // 在极小屏幕上移除按钮间距
+
+          .q-btn {
+            min-width: 22px !important;
+            min-height: 22px !important;
+            width: 22px;
+            height: 22px;
+            font-size: 10px;
+
+            .q-icon {
+              font-size: 12px;
+            }
+          }
         }
       }
     }
